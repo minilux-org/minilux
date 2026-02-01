@@ -1,0 +1,13 @@
+# The Minilux Programming Language
+# Version: 0.1.0
+# Author: Alexia Michelle <https://minilux.org>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+
+[package]
+name = "minilux"
+version = "0.1.0"
+edition = "2021"
+license = "MPL-2.0"
+
+[dependencies]

@@ -1,0 +1,38 @@
+#!/usr/bin/env minilux
+
+# The Minilux Programming Language Example
+# Title: Network request demo
+# Version: 0.1.0
+# Author: Alexia Michelle <https://minilux.org>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+
+include "common.mi"
+
+banner
+divider
+$host = "example.com" #change this to any host you want to test.
+$port = 80 # Standard HTTP port - You might want to change this also.
+
+printf("Starting HTTP GET to ", $host, "\n")
+
+$request = "GET / HTTP/1.1\r\n" + "Host: " + $host + "\r\nConnection: close\r\n\r\n"
+
+sockopen("web", $host, $port)
+sockwrite("web", $request)
+sockread("web", $response)
+
+if (len($response) == 0) {
+    printf("No data received.\n")
+}
+else {
+    printf("Received ", len($response), " bytes.\n")
+}
+
+divider
+printf("Response preview:\n")
+printf($response)
+
+sockclose("web")
+divider
+printf("Network demo finished.\n")

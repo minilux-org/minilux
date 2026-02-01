@@ -1,0 +1,92 @@
+#!/usr/bin/env minilux
+
+# The Minilux Programming Language Example
+# Title: Feature showcase
+# Version: 0.1.0
+# Author: Alexia Michelle <https://minilux.org>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+
+include "common.mi"
+
+banner
+printf($helper_message)
+divider
+
+$name = "Alexia"
+$language = "Minilux"
+$year = 2026
+printf("Welcome ", $name, " to ", $language, " in ", $year, "!")
+
+$age = 20
+printf("Starting age: ", $age)
+inc $age + 2
+printf("After inc: ", $age)
+dec $age - 1
+printf("After dec: ", $age)
+
+if (($age >= 18) AND ($language == "Minilux")) {
+    printf("You are an adult Minilux fan.")
+}
+elseif ($age >= 13) {
+    printf("You are a teen explorer.")
+}
+else {
+    printf("You are a young learner.")
+}
+
+$numbers = [1, 2, 3]
+$numbers[1] = 99
+printf("numbers[1] adjusted to ", $numbers[1])
+
+push $numbers, 4
+unshift $numbers, 0
+divider
+printf("Iterating array after push/unshift")
+$i = 0
+while ($i < len($numbers)) {
+    printf("Index ", $i, ": ", $numbers[$i])
+    inc $i + 1
+}
+
+pop $numbers
+shift $numbers
+divider
+printf("Array trimmed again; length now ", len($numbers))
+
+$word = "Minilux"
+printf("Word length: ", len($word), ", first char: ", $word[0])
+printf("lower(\"MIXED\"): ", lower("MIXED"))
+printf("upper($word): ", upper($word))
+
+$flag = 0
+if (!($flag)) {
+    printf("Logical NOT verified.")
+}
+
+if (($numbers[0] == 1) OR ($age > 100)) {
+    printf("OR condition evaluated true.")
+}
+
+divider
+$today = shell("date +%Y-%m-%d")
+printf("Today from shell: ", $today)
+
+func inspect_numbers {
+    divider
+    printf("Inspecting array contents...")
+    $idx = 0
+    while ($idx < len($numbers)) {
+        printf(" -> ", $numbers[$idx])
+        inc $idx + 1
+    }
+    divider
+}
+
+inspect_numbers
+wait_briefly
+show_return_demo
+printf("Returned from helper call.")
+
+divider
+printf("Showcase complete.")

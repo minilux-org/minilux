@@ -1,0 +1,30 @@
+# The Minilux Programming Language Example
+# Title: Common helper utilities
+# Version: 0.1.0
+# Author: Alexia Michelle <https://minilux.org>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+
+$helper_message = "Helpers loaded from include"
+
+func banner {
+    printf("==============================")
+    printf("   Minilux Feature Showcase   ")
+    printf("==============================")
+}
+
+func divider {
+    printf("------------------------------")
+}
+
+func wait_briefly {
+    printf("Pausing briefly...")
+    sleep(1)
+    printf("Resume after sleep.")
+}
+
+func show_return_demo {
+    printf("About to exit helper early.")
+    return
+    printf("This line never executes.")
+}

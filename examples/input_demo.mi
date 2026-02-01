@@ -1,0 +1,35 @@
+#!/usr/bin/env minilux
+
+# The Minilux Programming Language Example
+# Title: Input demo
+# Version: 0.1.0
+# Author: Alexia Michelle <https://minilux.org>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+
+include "common.mi"
+
+banner
+divider
+printf("Interactive input demo (press Ctrl+C to exit)")
+
+printf("What is your name?")
+read($name)
+printf("Hi ", upper($name), "!")
+
+printf("Do you like Minilux? [y/n]")
+read($answer)
+$choice = lower($answer)
+
+if ($choice == "y") {
+    printf("Great! Let's build something together.")
+}
+elseif ($choice == "n") {
+    printf("Thanks for giving it a try anyway.")
+}
+else {
+    printf("I'll take that as a maybe.")
+}
+
+divider
+printf("Demo complete.")

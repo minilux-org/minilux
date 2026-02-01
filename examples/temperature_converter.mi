@@ -1,0 +1,38 @@
+#!/usr/bin/env minilux
+
+# The Minilux Programming Language Example
+# Title: Temperature converter
+# Version: 0.1.0
+# Author: Alexia Michelle <https://minilux.org>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+
+include "common.mi"
+
+banner
+divider
+printf("Temperature converter")
+
+printf("Enter the temperature value:")
+read($raw_temp)
+$temp = number($raw_temp)
+
+printf("Is this value in Celsius or Fahrenheit? [C/F]")
+read($scale_input)
+$scale = lower($scale_input)
+
+divider
+if ($scale == "c") {
+    $result = ($temp * 9 / 5) + 32
+    printf($temp, " °C is ", $result, " °F")
+}
+elseif ($scale == "f") {
+    $result = ($temp - 32) * 5 / 9
+    printf($temp, " °F is ", $result, " °C")
+}
+else {
+    printf("Please answer with C or F.")
+}
+
+divider
+printf("Conversion complete.")
