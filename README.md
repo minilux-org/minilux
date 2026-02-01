@@ -56,6 +56,8 @@ make install
 
 This installs `minilux` to `/usr/bin`, allowing you to run scripts directly with a shebang.
 
+**Important** to build on mac, edit the Makefile and change the path to /usr/local/bin
+
 To uninstall run ```make uninstall``
 
 ### Rebuild
