@@ -1,4 +1,4 @@
-# minilux — minimal experimental language
+# minilux — A small, multipurpose programming language
 
 <div align="center">
   <img src="minilux.png" alt="minilux logo" width="200"/>
@@ -10,7 +10,7 @@
 
 ## About
 
-Minilux is a minimal scripting language designed for simplicity and learning. It features:
+Minilux is a minimal language designed for simplicity and learning. It features:
 
 - **Variables** with dynamic typing (integers, strings, arrays)
 - **Control flow** (if/elseif/else, while loops)
