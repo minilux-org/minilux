@@ -447,9 +447,13 @@ This implementation was rewritten from C to Rust to provide:
 **Alexia Michelle**  
 ✉️ <alexia@minilux.org>
 
-## License - MPL 2.0
+## License
 
-See LICENSE file for details.
+This project is licensed under the **Mozilla Public License 2.0**. See the [LICENSE](LICENSE) file for details.
+
+### Contributing
+
+By contributing to **minilux**, you agree to our [Contributing Guidelines](CONTRIBUTING.md) and the **Future Relicensing Notice** contained therein.
 
 ---
 
