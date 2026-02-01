@@ -535,7 +535,7 @@ impl Interpreter {
                             Ok(Value::Nil)
                         }
                     }
-                    "read_file" => {
+                    "fread" => {
                         if let Some(arg) = args.first() {
                             let val = self.eval_expr(arg)?;
                             let path = val.to_string();
@@ -547,7 +547,7 @@ impl Interpreter {
                             Ok(Value::String(String::new()))
                         }
                     }
-                    "write_file" => {
+                    "fwrite" => {
                         if args.len() >= 2 {
                             let path_val = self.eval_expr(&args[0])?;
                             let content_val = self.eval_expr(&args[1])?;
