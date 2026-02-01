@@ -535,6 +535,32 @@ impl Interpreter {
                             Ok(Value::Nil)
                         }
                     }
+                    "fread" => {
+                        if let Some(arg) = args.first() {
+                            let val = self.eval_expr(arg)?;
+                            let path = val.to_string();
+                            match fs::read_to_string(path) {
+                                Ok(content) => Ok(Value::String(content)),
+                                Err(_) => Ok(Value::String(String::new())),
+                            }
+                        } else {
+                            Ok(Value::String(String::new()))
+                        }
+                    }
+                    "fwrite" => {
+                        if args.len() >= 2 {
+                            let path_val = self.eval_expr(&args[0])?;
+                            let content_val = self.eval_expr(&args[1])?;
+                            let path = path_val.to_string();
+                            let content = content_val.to_string();
+                            match fs::write(path, content) {
+                                Ok(_) => Ok(Value::Int(1)),
+                                Err(_) => Ok(Value::Int(0)),
+                            }
+                        } else {
+                            Ok(Value::Int(0))
+                        }
+                    }
                     _ => {
                         eprintln!("Warning: unknown function '{}'", name);
                         Ok(Value::Nil)

@@ -1,0 +1,16 @@
+# Test File I/O
+$w_res = fwrite("test_io.txt", "Hello IO")
+printf("Write result: ", $w_res, "\n")
+
+$content = fread("test_io.txt")
+printf("Read content length: ", len($content), "\n")
+
+if ($content == "Hello IO") {
+    printf("File I/O: OK\n")
+} else {
+    printf("File I/O: FAILED (got '", $content, "')\n")
+}
+
+# Cleanup
+# currently no file deletion supported, so we leave it or overwrite it
+fwrite("test_io.txt", "")
