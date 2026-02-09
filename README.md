@@ -3,7 +3,7 @@
 
 ![minilux logo](minilux.png)
 
-
+![CI](https://github.com/minilux-org/minilux/actions/workflows/build.yml/badge.svg)
 
 ## About
 
