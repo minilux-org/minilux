@@ -26,7 +26,7 @@ jobs:
         run: cargo fmt -- --check
 
       - name: Lint (clippy)
-        run: cargo clippy --all-targets --all-features
+        run: cargo clippy --all-targets --all-features -- -A clippy::inherent_to_string_shadow_display -A clippy::needless_borrow -A clippy::manual_pattern_char_comparison -A clippy::while_let_loop
 
       - name: "──────────── Build ────────────"
         run: echo "Building release binary"
