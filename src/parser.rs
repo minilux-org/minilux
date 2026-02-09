@@ -4,7 +4,7 @@
 // License: MPL 2.0
 // SPDX-License-Identifier: MPL-2.0
 
-use crate::lexer::{Lexer, Token};
+use crate::lexer::{self, Lexer, Token};
 use std::collections::VecDeque;
 
 #[derive(Debug, Clone)]
@@ -739,7 +739,7 @@ impl Parser {
         self.skip_statement_end();
 
         Some(Statement::FunctionCall {
-            name: "sleep".to_string(),
+            name: lexer::token_to_str(&Token::Sleep).to_string(),
             args: vec![seconds],
         })
     }
@@ -992,6 +992,20 @@ impl Parser {
         expr
     }
 
+    fn parse_builtin_call(&mut self, token: &Token, default: Expr) -> Expr {
+        self.advance();
+        if self.expect(Token::LeftParen) {
+            let arg = self.parse_expr();
+            self.expect(Token::RightParen);
+            Expr::FunctionCall {
+                name: lexer::token_to_str(token).to_string(),
+                args: vec![arg],
+            }
+        } else {
+            default
+        }
+    }
+
     fn parse_primary(&mut self) -> Expr {
         match self.current().clone() {
             Token::Int(n) => {
@@ -1002,83 +1016,13 @@ impl Parser {
                 self.advance();
                 Expr::String(s)
             }
-            Token::Len => {
-                self.advance();
-                if self.expect(Token::LeftParen) {
-                    let arg = self.parse_expr();
-                    self.expect(Token::RightParen);
-                    Expr::FunctionCall {
-                        name: "len".to_string(),
-                        args: vec![arg],
-                    }
-                } else {
-                    Expr::Int(0)
-                }
+            Token::Len | Token::Number | Token::Sleep => {
+                let tok = self.current().clone();
+                self.parse_builtin_call(&tok, Expr::Int(0))
             }
-            Token::Shell => {
-                self.advance();
-                if self.expect(Token::LeftParen) {
-                    let arg = self.parse_expr();
-                    self.expect(Token::RightParen);
-                    Expr::FunctionCall {
-                        name: "shell".to_string(),
-                        args: vec![arg],
-                    }
-                } else {
-                    Expr::String(String::new())
-                }
-            }
-            Token::Number => {
-                self.advance();
-                if self.expect(Token::LeftParen) {
-                    let arg = self.parse_expr();
-                    self.expect(Token::RightParen);
-                    Expr::FunctionCall {
-                        name: "number".to_string(),
-                        args: vec![arg],
-                    }
-                } else {
-                    Expr::Int(0)
-                }
-            }
-            Token::Lower => {
-                self.advance();
-                if self.expect(Token::LeftParen) {
-                    let arg = self.parse_expr();
-                    self.expect(Token::RightParen);
-                    Expr::FunctionCall {
-                        name: "lower".to_string(),
-                        args: vec![arg],
-                    }
-                } else {
-                    Expr::String(String::new())
-                }
-            }
-            Token::Upper => {
-                self.advance();
-                if self.expect(Token::LeftParen) {
-                    let arg = self.parse_expr();
-                    self.expect(Token::RightParen);
-                    Expr::FunctionCall {
-                        name: "upper".to_string(),
-                        args: vec![arg],
-                    }
-                } else {
-                    Expr::String(String::new())
-                }
-            }
-            Token::Sleep => {
-                self.advance();
-                if self.expect(Token::LeftParen) {
-                    let arg = self.parse_expr();
-                    self.expect(Token::RightParen);
-                    Expr::FunctionCall {
-                        name: "sleep".to_string(),
-                        args: vec![arg],
-                    }
-                } else {
-                    Expr::Int(0)
-                }
+            Token::Shell | Token::Lower | Token::Upper => {
+                let tok = self.current().clone();
+                self.parse_builtin_call(&tok, Expr::String(String::new()))
             }
             Token::Variable(name) => {
                 self.advance();

@@ -4,6 +4,7 @@
 // License: MPL 2.0
 // SPDX-License-Identifier: MPL-2.0
 
+mod formatter;
 mod interpreter;
 mod lexer;
 mod parser;
@@ -20,7 +21,12 @@ use std::path::Path;
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() > 1 {
+    if args.len() > 1 && args[1] == "fmt" {
+        if let Err(e) = run_fmt(&args[2..]) {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    } else if args.len() > 1 {
         if let Err(e) = execute_file(&args[1]) {
             eprintln!("Error: {}", e);
             std::process::exit(1);
@@ -28,6 +34,33 @@ fn main() {
     } else {
         run_repl();
     }
+}
+
+fn run_fmt(args: &[String]) -> Result<(), String> {
+    let mut write_in_place = false;
+    let mut file_path = None;
+
+    for arg in args {
+        if arg == "-w" {
+            write_in_place = true;
+        } else {
+            file_path = Some(arg.as_str());
+        }
+    }
+
+    let path = file_path.ok_or("Usage: minilux fmt [-w] <file>")?;
+    let content =
+        fs::read_to_string(path).map_err(|e| format!("Failed to read file: {}", e))?;
+
+    let formatted = formatter::format_source(&content);
+
+    if write_in_place {
+        fs::write(path, &formatted).map_err(|e| format!("Failed to write file: {}", e))?;
+    } else {
+        print!("{}", formatted);
+    }
+
+    Ok(())
 }
 
 fn execute_file(path: &str) -> Result<(), String> {

@@ -1,0 +1,20 @@
+#!/usr/bin/env minilux
+# FizzBuzz from 1 to 20
+
+$i = 1
+WHILE ($i <= 20) {
+$mod3 = $i % 3
+$mod5 = $i % 5
+
+IF ((($mod3 == 0) and ($mod5 == 0))) {
+PRINTF("FizzBuzz")
+} ELSEIF ($mod3 == 0) {
+PRINTF("Fizz")
+} ELSEIF ($mod5 == 0) {
+PRINTF("Buzz")
+} ELSE {
+PRINTF($i)
+}
+
+INC $i + 1
+}
