@@ -1,0 +1,284 @@
+(* ===================================================================== *)
+(* Minilux Programming Language — EBNF Grammar                           *)
+(* Version: 0.1.0                                                        *)
+(* Derived from: src/lexer.rs, src/parser.rs, src/interpreter.rs         *)
+(* ===================================================================== *)
+
+
+(* ------------------------------------------------------------------- *)
+(* 1. Lexical Elements                                                   *)
+(* ------------------------------------------------------------------- *)
+
+letter          = "A" | "B" | ... | "Z" | "a" | "b" | ... | "z" | "_" ;
+digit           = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+alnum           = letter | digit ;
+
+integer         = digit { digit } ;
+
+escape_seq      = "\\" ( "n" | "t" | "r" | "\\" | '"' | "'" | ? any char ? ) ;
+string          = '"' { ? any char except '"' and '\\' ? | escape_seq } '"'
+                | "'" { ? any char except "'" and '\\' ? | escape_seq } "'" ;
+
+identifier      = letter { alnum } ;
+variable        = "$" identifier ;
+
+comment         = "#" { ? any char except newline ? } ;
+
+newline         = "\n" ;
+whitespace      = " " | "\t" | "\r" ;
+
+
+(* ------------------------------------------------------------------- *)
+(* 2. Keywords                                                           *)
+(* ------------------------------------------------------------------- *)
+
+(* Control flow *)
+kw_if           = "if" ;
+kw_elseif       = "elseif" ;
+kw_else         = "else" ;
+kw_while        = "while" ;
+
+(* I/O *)
+kw_printf       = "printf" | "print" ;
+kw_read         = "read" ;
+
+(* Arithmetic mutation *)
+kw_inc          = "inc" ;
+kw_dec          = "dec" ;
+
+(* Array operations *)
+kw_array        = "array" ;
+kw_push         = "push" ;
+kw_pop          = "pop" ;
+kw_shift        = "shift" ;
+kw_unshift      = "unshift" ;
+
+(* Built-in expression functions *)
+kw_len          = "len" | "strlen" ;
+kw_shell        = "shell" ;
+kw_number       = "number" ;
+kw_lower        = "lower" ;
+kw_upper        = "upper" ;
+kw_sleep        = "sleep" ;
+
+(* Socket operations *)
+kw_sockopen     = "sockopen" ;
+kw_sockclose    = "sockclose" ;
+kw_sockwrite    = "sockwrite" ;
+kw_sockread     = "sockread" ;
+kw_sockstatus   = "sockstatus" ;
+
+(* Functions and modules *)
+kw_func         = "func" | "function" ;
+kw_return       = "return" ;
+kw_include      = "include" ;
+
+(* Logical operators (keyword form) *)
+kw_and          = "AND" ;
+kw_or           = "OR" ;
+
+
+(* ------------------------------------------------------------------- *)
+(* 3. Operators and Delimiters                                           *)
+(* ------------------------------------------------------------------- *)
+
+(* Arithmetic *)
+op_plus         = "+" ;
+op_minus        = "-" ;
+op_star         = "*" ;
+op_slash        = "/" ;
+op_percent      = "%" ;
+
+(* Assignment *)
+op_equals       = "=" ;
+
+(* Comparison *)
+op_eq           = "==" ;
+op_neq          = "!=" ;
+op_lt           = "<" ;
+op_lte          = "<=" ;
+op_gt           = ">" ;
+op_gte          = ">=" ;
+
+(* Logical *)
+op_and          = kw_and | "&&" ;
+op_or           = kw_or  | "||" ;
+op_not          = "!" ;
+
+(* Delimiters *)
+lbrace          = "{" ;
+rbrace          = "}" ;
+lparen          = "(" ;
+rparen          = ")" ;
+lbracket        = "[" ;
+rbracket        = "]" ;
+semicolon       = ";" ;
+comma           = "," ;
+dot             = "." ;
+at              = "@" ;
+
+stmt_end        = semicolon | newline ;
+
+
+(* ------------------------------------------------------------------- *)
+(* 4. Program Structure                                                  *)
+(* ------------------------------------------------------------------- *)
+
+program         = { newline } { statement { newline } } ;
+
+block           = { newline } { statement { newline } } ;
+
+
+(* ------------------------------------------------------------------- *)
+(* 5. Statements                                                         *)
+(* ------------------------------------------------------------------- *)
+
+statement       = if_stmt
+                | while_stmt
+                | printf_stmt
+                | read_stmt
+                | inc_stmt
+                | dec_stmt
+                | push_stmt
+                | pop_stmt
+                | shift_stmt
+                | unshift_stmt
+                | sockopen_stmt
+                | sockclose_stmt
+                | sockwrite_stmt
+                | sockread_stmt
+                | include_stmt
+                | func_def
+                | return_stmt
+                | sleep_stmt
+                | assignment
+                | array_assignment
+                | func_call ;
+
+(* --- Control flow --- *)
+
+if_stmt         = kw_if lparen expression rparen lbrace block rbrace
+                  { kw_elseif lparen expression rparen lbrace block rbrace }
+                  [ kw_else lbrace block rbrace ] ;
+
+while_stmt      = kw_while lparen expression rparen lbrace block rbrace ;
+
+(* --- Assignment --- *)
+
+assignment      = variable op_equals expression [ stmt_end ] ;
+
+array_assignment = variable lbracket expression rbracket
+                   op_equals expression [ stmt_end ] ;
+
+(* --- I/O --- *)
+
+printf_stmt     = kw_printf lparen expression { comma expression } rparen [ stmt_end ] ;
+
+read_stmt       = kw_read lparen variable rparen [ stmt_end ] ;
+
+(* --- Arithmetic mutation --- *)
+
+inc_stmt        = kw_inc variable op_plus expression [ stmt_end ] ;
+
+dec_stmt        = kw_dec variable op_minus expression [ stmt_end ] ;
+
+(* --- Array operations --- *)
+
+push_stmt       = kw_push variable comma expression [ stmt_end ] ;
+
+pop_stmt        = kw_pop variable [ stmt_end ] ;
+
+shift_stmt      = kw_shift variable [ stmt_end ] ;
+
+unshift_stmt    = kw_unshift variable comma expression [ stmt_end ] ;
+
+(* --- Socket operations --- *)
+
+sockopen_stmt   = kw_sockopen lparen string comma expression
+                  comma expression rparen [ stmt_end ] ;
+
+sockclose_stmt  = kw_sockclose lparen string rparen [ stmt_end ] ;
+
+sockwrite_stmt  = kw_sockwrite lparen string comma expression rparen [ stmt_end ] ;
+
+sockread_stmt   = kw_sockread lparen string comma variable rparen [ stmt_end ] ;
+
+(* --- Modules --- *)
+
+include_stmt    = kw_include string [ stmt_end ] ;
+
+(* --- Functions --- *)
+
+func_def        = kw_func identifier [ lparen rparen ] lbrace block rbrace ;
+
+func_call       = identifier [ lbrace block rbrace ] [ stmt_end ] ;
+
+return_stmt     = kw_return [ expression ] [ stmt_end ] ;
+
+(* --- Sleep (statement form) --- *)
+
+sleep_stmt      = kw_sleep lparen expression rparen [ stmt_end ] ;
+
+
+(* ------------------------------------------------------------------- *)
+(* 6. Expressions (precedence: lowest to highest)                        *)
+(* ------------------------------------------------------------------- *)
+
+expression      = or_expr ;
+
+or_expr         = and_expr { op_or and_expr } ;
+
+and_expr        = equality_expr { op_and equality_expr } ;
+
+equality_expr   = comparison_expr { ( op_eq | op_neq ) comparison_expr } ;
+
+comparison_expr = additive_expr { ( op_lt | op_lte | op_gt | op_gte ) additive_expr } ;
+
+additive_expr   = mult_expr { ( op_plus | op_minus ) mult_expr } ;
+
+mult_expr       = unary_expr { ( op_star | op_slash | op_percent ) unary_expr } ;
+
+unary_expr      = op_not unary_expr
+                | op_minus unary_expr
+                | postfix_expr ;
+
+postfix_expr    = primary_expr { lbracket expression rbracket } ;
+
+primary_expr    = integer
+                | string
+                | variable [ lparen [ arg_list ] rparen ]
+                | builtin_call
+                | lparen expression rparen
+                | array_literal ;
+
+builtin_call    = kw_len lparen expression rparen
+                | kw_shell lparen expression rparen
+                | kw_number lparen expression rparen
+                | kw_lower lparen expression rparen
+                | kw_upper lparen expression rparen
+                | kw_sleep lparen expression rparen ;
+
+array_literal   = lbracket [ expression { comma expression } ] rbracket ;
+
+arg_list        = expression { comma expression } ;
+
+
+(* ------------------------------------------------------------------- *)
+(* 7. Notes                                                              *)
+(* ------------------------------------------------------------------- *)
+
+(* - All keywords are case-sensitive in the lexer (exact match).         *)
+(*   The formatter normalizes casing: keywords lowercase, AND/OR upper.  *)
+(* - Variables are always prefixed with $.                                *)
+(*   Bare identifiers (without $) are treated as function calls.         *)
+(* - Functions have no parameters and no local scope.                    *)
+(*   All state is shared globally via the runtime.                       *)
+(* - Comments start with # and extend to end of line.                    *)
+(* - print is an alias for printf; strlen is an alias for len.           *)
+(* - function is an alias for func.                                      *)
+(* - The parser silently skips syntax errors (returns None).             *)
+(* - Semicolons are optional; newlines act as statement terminators.     *)
+(* - sleep can appear as both a statement and an expression.             *)
+(* - kw_array and kw_sockstatus are reserved keywords recognised by the  *)
+(*   lexer but have no corresponding parser rule (no statement form).    *)
+(* - dot (".") and at ("@") are lexer tokens with no parser usage.       *)

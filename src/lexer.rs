@@ -129,7 +129,6 @@ pub const KEYWORD_ALIASES: &[(&str, Token)] = &[
     ("print", Token::Printf),
     ("strlen", Token::Len),
     ("function", Token::Function),
-    ("not", Token::Not),
 ];
 
 /// Exact-match keyword lookup (used by the lexer itself).

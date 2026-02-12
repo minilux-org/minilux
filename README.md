@@ -80,6 +80,23 @@ chmod +x examples/test.mi
 ./examples/test.mi
 ```
 
+## Source Code Formatter
+
+Minilux includes a built-in formatter that normalizes indentation, spacing, and keyword casing:
+
+```sh
+minilux fmt script.mi          # print formatted output to stdout
+minilux fmt -w script.mi       # format file in-place
+minilux fmt script.mi > out.mi # redirect to a new file
+```
+
+The formatter applies:
+- 4-space indentation based on block structure
+- Consistent spacing around operators and after commas
+- Keyword normalization (`IF` → `if`, `and` → `AND`)
+- Comment preservation
+- Blank line collapsing
+
 ## Language Reference
 
 ### Variables
@@ -401,8 +418,10 @@ minilux/
 │   ├── lexer.rs        # Tokenization
 │   ├── parser.rs       # AST generation
 │   ├── interpreter.rs  # Execution engine
-│   └── runtime.rs      # Runtime state management
+│   ├── runtime.rs      # Runtime state management
+│   └── formatter.rs    # Source code formatter
 ├── examples/           # Example scripts
+├── grammar.ebnf        # Formal EBNF grammar
 ├── Cargo.toml          # Rust dependencies
 ├── Makefile            # Build automation
 └── README.md           # This file
