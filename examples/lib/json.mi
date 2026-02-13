@@ -1,0 +1,170 @@
+# The Minilux Programming Language Standard Library
+# Title: JSON Library
+# Version: 0.1.0
+# Author: OscarEEspinozaB <https://github.com/OscarEEspinozaB/>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+#
+# Usage:
+#   include "lib/json.mi"
+#
+# All functions follow the $_arg_* / $_ret_* convention.
+# Flat JSON only — no nested objects or arrays as values.
+# Parsing uses sed/grep (no jq dependency).
+
+# --- Global state ---
+$_json_err = ""
+
+# ============================================================
+# json_get - Get raw value for a field (strings include quotes)
+# ============================================================
+# Input:  $_arg_json, $_arg_field
+# Output: $_ret_value (raw value, e.g. "John" or 42)
+func json_get {
+    $_json_err = ""
+    $__jg_line = shell("printf '%s' '" + $_arg_json + "' | tr -d '\\n'")
+    $_ret_value = shell("printf '%s' '" + $__jg_line + "' | sed 's/.*\"" + $_arg_field + "\" *: *//' | sed 's/ *[,}].*//'")
+    if ($_ret_value == $__jg_line) {
+        $_ret_value = ""
+        $_json_err = "Field not found: " + $_arg_field
+    }
+}
+
+# ============================================================
+# json_get_string - Get unquoted string value for a field
+# ============================================================
+# Input:  $_arg_json, $_arg_field
+# Output: $_ret_value (unquoted string)
+func json_get_string {
+    $_json_err = ""
+    $__jgs_line = shell("printf '%s' '" + $_arg_json + "' | tr -d '\\n'")
+    $_ret_value = shell("printf '%s' '" + $__jgs_line + "' | sed 's/.*\"" + $_arg_field + "\" *: *//' | sed 's/ *[,}].*//' | sed 's/^\"//;s/\"$//'")
+    if ($_ret_value == $__jgs_line) {
+        $_ret_value = ""
+        $_json_err = "Field not found: " + $_arg_field
+    }
+}
+
+# ============================================================
+# json_get_number - Get numeric value for a field
+# ============================================================
+# Input:  $_arg_json, $_arg_field
+# Output: $_ret_value (int)
+func json_get_number {
+    $_json_err = ""
+    $__jgn_line = shell("printf '%s' '" + $_arg_json + "' | tr -d '\\n'")
+    $__jgn_raw = shell("printf '%s' '" + $__jgn_line + "' | sed 's/.*\"" + $_arg_field + "\" *: *//' | sed 's/ *[,}].*//' | sed 's/\"//g'")
+    if ($__jgn_raw == $__jgn_line) {
+        $_ret_value = 0
+        $_json_err = "Field not found: " + $_arg_field
+    }
+    else {
+        $_ret_value = number($__jgn_raw)
+    }
+}
+
+# ============================================================
+# json_has_field - Check if a field exists in JSON
+# ============================================================
+# Input:  $_arg_json, $_arg_field
+# Output: $_ret_found (1 or 0)
+func json_has_field {
+    $_json_err = ""
+    $__jhf_result = shell("printf '%s' '" + $_arg_json + "' | tr -d '\\n' | grep -c '\"" + $_arg_field + "\"' || true")
+    $_ret_found = number($__jhf_result)
+    if ($_ret_found > 1) {
+        $_ret_found = 1
+    }
+}
+
+# ============================================================
+# json_build - Build JSON object from key/value arrays
+# ============================================================
+# Input:  $_arg_keys (array of strings), $_arg_vals (array of values)
+# Output: $_ret_value (JSON string)
+# Note:   Int values are unquoted; String values are quoted.
+func json_build {
+    $_json_err = ""
+    $__jb_json = "{"
+    $__jb_i = 0
+    $__jb_len = len($_arg_keys)
+    while ($__jb_i < $__jb_len) {
+        if ($__jb_i > 0) {
+            $__jb_json = $__jb_json + ","
+        }
+        $__jb_json = $__jb_json + "\"" + $_arg_keys[$__jb_i] + "\":"
+        # Detect if value is numeric (Int + 0 == Int, String + 0 != String)
+        $__jb_test = $_arg_vals[$__jb_i] + 0
+        if ($__jb_test == $_arg_vals[$__jb_i]) {
+            $__jb_json = $__jb_json + $_arg_vals[$__jb_i]
+        }
+        else {
+            $__jb_json = $__jb_json + "\"" + $_arg_vals[$__jb_i] + "\""
+        }
+        inc $__jb_i + 1
+    }
+    $__jb_json = $__jb_json + "}"
+    $_ret_value = $__jb_json
+}
+
+# ============================================================
+# json_set - Set or replace a field value in JSON
+# ============================================================
+# Input:  $_arg_json, $_arg_field, $_arg_value
+# Output: $_ret_value (updated JSON string)
+# Note:   Int values are unquoted; String values are quoted.
+func json_set {
+    $_json_err = ""
+    # Detect if value is numeric
+    $__js_test = $_arg_value + 0
+    if ($__js_test == $_arg_value) {
+        $__js_newval = "" + $_arg_value
+    }
+    else {
+        $__js_newval = "\"" + $_arg_value + "\""
+    }
+    $_ret_value = shell("printf '%s' '" + $_arg_json + "' | tr -d '\\n' | sed 's|\"" + $_arg_field + "\" *: *[^,}]*|\"" + $_arg_field + "\":" + $__js_newval + "|'")
+}
+
+# ============================================================
+# json_array_len - Count elements in a JSON array
+# ============================================================
+# Input:  $_arg_json (e.g. [1, 2, 3])
+# Output: $_ret_value (int count)
+# Note:   Flat arrays only — no nested arrays or objects.
+func json_array_len {
+    $_json_err = ""
+    $__jal_inner = shell("printf '%s' '" + $_arg_json + "' | tr -d '\\n[] '")
+    if ($__jal_inner == "") {
+        $_ret_value = 0
+    }
+    else {
+        $__jal_commas = shell("printf '%s' '" + $__jal_inner + "' | tr -cd ',' | wc -c")
+        $_ret_value = number($__jal_commas) + 1
+    }
+}
+
+# ============================================================
+# json_escape - Escape special characters for JSON strings
+# ============================================================
+# Input:  $_arg_str
+# Output: $_ret_str (escaped string, without surrounding quotes)
+func json_escape {
+    $_json_err = ""
+    $_ret_str = ""
+    $__je_i = 0
+    $__je_len = len($_arg_str)
+    while ($__je_i < $__je_len) {
+        $__je_ch = $_arg_str[$__je_i]
+        if ($__je_ch == "\\") {
+            $_ret_str = $_ret_str + "\\\\"
+        }
+        elseif ($__je_ch == "\"") {
+            $_ret_str = $_ret_str + "\\\""
+        }
+        else {
+            $_ret_str = $_ret_str + $__je_ch
+        }
+        inc $__je_i + 1
+    }
+}

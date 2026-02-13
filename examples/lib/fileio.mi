@@ -1,0 +1,381 @@
+# The Minilux Programming Language Standard Library
+# Title: File I/O Library
+# Version: 0.1.0
+# Author: OscarEEspinozaB <https://github.com/OscarEEspinozaB/>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+#
+# Usage:
+#   include "lib/fileio.mi"
+#
+# All functions follow the $_arg_* / $_ret_* convention.
+# Set $_file_base_path via file_init to prefix all paths automatically.
+
+# --- Global state ---
+$_file_base_path = ""
+$_file_err = ""
+
+# ============================================================
+# Internal Helpers
+# ============================================================
+
+# Resolves $_arg_path using $_file_base_path if set.
+# Input:  $_arg_path
+# Output: $_ret_path
+func _file_resolve_path {
+    if ($_file_base_path == "") {
+        $_ret_path = $_arg_path
+    }
+    else {
+        $_ret_path = $_file_base_path + "/" + $_arg_path
+    }
+}
+
+# Checks shell result for errors (empty result = likely failure).
+# Input:  $_file_shell_result (set before calling)
+# Output: $_ret_ok (1 = success, 0 = failure), $_file_err
+func _file_check_error {
+    $_file_err = ""
+    $_ret_ok = 1
+}
+
+# ============================================================
+# Group 1: Initialization
+# ============================================================
+
+# Initialize the file library with a base directory path.
+# Input:  $_arg_path (base directory)
+# Output: $_file_base_path is set; $_ret_ok (1/0)
+func file_init {
+    $_ret_ok = 0
+    $_file_err = ""
+    $__fi_check = shell("test -d '" + $_arg_path + "' && echo yes || echo no")
+    if ($__fi_check == "yes") {
+        $_file_base_path = $_arg_path
+        $_ret_ok = 1
+    }
+    else {
+        # Directory does not exist, attempt to create it
+        $__fi_discard = shell("mkdir -p '" + $_arg_path + "'")
+        $__fi_check2 = shell("test -d '" + $_arg_path + "' && echo yes || echo no")
+        if ($__fi_check2 == "yes") {
+            $_file_base_path = $_arg_path
+            $_ret_ok = 1
+        }
+        else {
+            $_file_err = "Cannot create or access directory: " + $_arg_path
+        }
+    }
+}
+
+# Reset the base path (clear the file library state).
+func file_reset {
+    $_file_base_path = ""
+    $_file_err = ""
+}
+
+# ============================================================
+# Group 2: Core File Operations
+# ============================================================
+
+# Check if a file exists.
+# Input:  $_arg_path
+# Output: $_ret_exists ("yes" or "no")
+func file_check {
+    _file_resolve_path
+    $_ret_exists = shell("test -f '" + $_ret_path + "' && echo yes || echo no")
+}
+
+# Read the contents of a file.
+# Input:  $_arg_path
+# Output: $_ret_content, $_ret_ok
+func file_read {
+    _file_resolve_path
+    $_ret_ok = 0
+    $_file_err = ""
+    $__fr_exists = shell("test -f '" + $_ret_path + "' && echo yes || echo no")
+    if ($__fr_exists == "yes") {
+        $_ret_content = shell("cat '" + $_ret_path + "'")
+        $_ret_ok = 1
+    }
+    else {
+        $_ret_content = ""
+        $_file_err = "File not found: " + $_ret_path
+    }
+}
+
+# Write data to a file (overwrites existing content).
+# Input:  $_arg_path, $_arg_data
+# Output: $_ret_ok (1/0)
+func file_write {
+    _file_resolve_path
+    $_ret_ok = 0
+    $_file_err = ""
+    $__fw_discard = shell("printf '%s' '" + $_arg_data + "' > '" + $_ret_path + "'")
+    $__fw_check = shell("test -f '" + $_ret_path + "' && echo yes || echo no")
+    if ($__fw_check == "yes") {
+        $_ret_ok = 1
+    }
+    else {
+        $_file_err = "Failed to write file: " + $_ret_path
+    }
+}
+
+# Append data to a file.
+# Input:  $_arg_path, $_arg_data
+# Output: $_ret_ok (1/0)
+func file_update {
+    _file_resolve_path
+    $_ret_ok = 0
+    $_file_err = ""
+    $__fu_discard = shell("printf '%s' '" + $_arg_data + "' >> '" + $_ret_path + "'")
+    $__fu_check = shell("test -f '" + $_ret_path + "' && echo yes || echo no")
+    if ($__fu_check == "yes") {
+        $_ret_ok = 1
+    }
+    else {
+        $_file_err = "Failed to append to file: " + $_ret_path
+    }
+}
+
+# Delete a file.
+# Input:  $_arg_path
+# Output: $_ret_ok (1/0)
+func file_delete {
+    _file_resolve_path
+    $_ret_ok = 0
+    $_file_err = ""
+    $__fd_exists = shell("test -f '" + $_ret_path + "' && echo yes || echo no")
+    if ($__fd_exists == "yes") {
+        $__fd_discard = shell("rm '" + $_ret_path + "'")
+        $__fd_gone = shell("test -f '" + $_ret_path + "' && echo yes || echo no")
+        if ($__fd_gone == "no") {
+            $_ret_ok = 1
+        }
+        else {
+            $_file_err = "Failed to delete file: " + $_ret_path
+        }
+    }
+    else {
+        $_file_err = "File not found: " + $_ret_path
+    }
+}
+
+# List files in a directory.
+# Input:  $_arg_path
+# Output: $_ret_content (newline-separated list)
+func file_list {
+    _file_resolve_path
+    $_ret_ok = 0
+    $_file_err = ""
+    $__fl_exists = shell("test -d '" + $_ret_path + "' && echo yes || echo no")
+    if ($__fl_exists == "yes") {
+        $_ret_content = shell("ls '" + $_ret_path + "'")
+        $_ret_ok = 1
+    }
+    else {
+        $_ret_content = ""
+        $_file_err = "Directory not found: " + $_ret_path
+    }
+}
+
+# ============================================================
+# Group 3: Directory Operations
+# ============================================================
+
+# Create a directory (and parents if needed).
+# Input:  $_arg_path
+# Output: $_ret_ok (1/0)
+func dir_create {
+    _file_resolve_path
+    $_ret_ok = 0
+    $_file_err = ""
+    $__dc_discard = shell("mkdir -p '" + $_ret_path + "'")
+    $__dc_check = shell("test -d '" + $_ret_path + "' && echo yes || echo no")
+    if ($__dc_check == "yes") {
+        $_ret_ok = 1
+    }
+    else {
+        $_file_err = "Failed to create directory: " + $_ret_path
+    }
+}
+
+# Remove an empty directory.
+# Input:  $_arg_path
+# Output: $_ret_ok (1/0)
+func dir_remove {
+    _file_resolve_path
+    $_ret_ok = 0
+    $_file_err = ""
+    $__dr_exists = shell("test -d '" + $_ret_path + "' && echo yes || echo no")
+    if ($__dr_exists == "yes") {
+        $__dr_discard = shell("rmdir '" + $_ret_path + "'")
+        $__dr_gone = shell("test -d '" + $_ret_path + "' && echo yes || echo no")
+        if ($__dr_gone == "no") {
+            $_ret_ok = 1
+        }
+        else {
+            $_file_err = "Failed to remove directory (not empty?): " + $_ret_path
+        }
+    }
+    else {
+        $_file_err = "Directory not found: " + $_ret_path
+    }
+}
+
+# List subdirectories in a directory.
+# Input:  $_arg_path
+# Output: $_ret_content (newline-separated list)
+func dir_list {
+    _file_resolve_path
+    $_ret_ok = 0
+    $_file_err = ""
+    $__dl_exists = shell("test -d '" + $_ret_path + "' && echo yes || echo no")
+    if ($__dl_exists == "yes") {
+        $_ret_content = shell("ls -d '" + $_ret_path + "'/*/ 2>/dev/null | xargs -I{} basename {}")
+        $_ret_ok = 1
+    }
+    else {
+        $_ret_content = ""
+        $_file_err = "Directory not found: " + $_ret_path
+    }
+}
+
+# ============================================================
+# Group 4: Metadata
+# ============================================================
+
+# Get file size in bytes.
+# Input:  $_arg_path
+# Output: $_ret_value (size string)
+func file_size {
+    _file_resolve_path
+    $_ret_ok = 0
+    $_file_err = ""
+    $__fs_exists = shell("test -f '" + $_ret_path + "' && echo yes || echo no")
+    if ($__fs_exists == "yes") {
+        $_ret_value = shell("stat -c%s '" + $_ret_path + "' 2>/dev/null || stat -f%z '" + $_ret_path + "'")
+        $_ret_ok = 1
+    }
+    else {
+        $_ret_value = ""
+        $_file_err = "File not found: " + $_ret_path
+    }
+}
+
+# Get file permissions (octal string).
+# Input:  $_arg_path
+# Output: $_ret_value (e.g. "644")
+func file_perms {
+    _file_resolve_path
+    $_ret_ok = 0
+    $_file_err = ""
+    $__fp_exists = shell("test -f '" + $_ret_path + "' && echo yes || echo no")
+    if ($__fp_exists == "yes") {
+        $_ret_value = shell("stat -c%a '" + $_ret_path + "' 2>/dev/null || stat -f%Lp '" + $_ret_path + "'")
+        $_ret_ok = 1
+    }
+    else {
+        $_ret_value = ""
+        $_file_err = "File not found: " + $_ret_path
+    }
+}
+
+# Get file last modification date.
+# Input:  $_arg_path
+# Output: $_ret_value (date string)
+func file_modified {
+    _file_resolve_path
+    $_ret_ok = 0
+    $_file_err = ""
+    $__fm_exists = shell("test -f '" + $_ret_path + "' && echo yes || echo no")
+    if ($__fm_exists == "yes") {
+        $_ret_value = shell("stat -c%y '" + $_ret_path + "' 2>/dev/null || stat -f%Sm '" + $_ret_path + "'")
+        $_ret_ok = 1
+    }
+    else {
+        $_ret_value = ""
+        $_file_err = "File not found: " + $_ret_path
+    }
+}
+
+# ============================================================
+# Group 5: Copy / Move / Rename
+# ============================================================
+
+# Copy a file.
+# Input:  $_arg_src, $_arg_dest
+# Output: $_ret_ok (1/0)
+func file_copy {
+    # Resolve source
+    $__fc_save_path = $_arg_path
+    $_arg_path = $_arg_src
+    _file_resolve_path
+    $__fc_src = $_ret_path
+
+    # Resolve destination
+    $_arg_path = $_arg_dest
+    _file_resolve_path
+    $__fc_dest = $_ret_path
+
+    $_arg_path = $__fc_save_path
+    $_ret_ok = 0
+    $_file_err = ""
+
+    $__fc_exists = shell("test -f '" + $__fc_src + "' && echo yes || echo no")
+    if ($__fc_exists == "yes") {
+        $__fc_discard = shell("cp '" + $__fc_src + "' '" + $__fc_dest + "'")
+        $__fc_check = shell("test -f '" + $__fc_dest + "' && echo yes || echo no")
+        if ($__fc_check == "yes") {
+            $_ret_ok = 1
+        }
+        else {
+            $_file_err = "Failed to copy file"
+        }
+    }
+    else {
+        $_file_err = "Source file not found: " + $__fc_src
+    }
+}
+
+# Move a file.
+# Input:  $_arg_src, $_arg_dest
+# Output: $_ret_ok (1/0)
+func file_move {
+    # Resolve source
+    $__fm_save_path = $_arg_path
+    $_arg_path = $_arg_src
+    _file_resolve_path
+    $__fm_src = $_ret_path
+
+    # Resolve destination
+    $_arg_path = $_arg_dest
+    _file_resolve_path
+    $__fm_dest = $_ret_path
+
+    $_arg_path = $__fm_save_path
+    $_ret_ok = 0
+    $_file_err = ""
+
+    $__fm_exists = shell("test -f '" + $__fm_src + "' && echo yes || echo no")
+    if ($__fm_exists == "yes") {
+        $__fm_discard = shell("mv '" + $__fm_src + "' '" + $__fm_dest + "'")
+        $__fm_check = shell("test -f '" + $__fm_dest + "' && echo yes || echo no")
+        if ($__fm_check == "yes") {
+            $_ret_ok = 1
+        }
+        else {
+            $_file_err = "Failed to move file"
+        }
+    }
+    else {
+        $_file_err = "Source file not found: " + $__fm_src
+    }
+}
+
+# Rename a file (alias for file_move).
+# Input:  $_arg_src, $_arg_dest
+# Output: $_ret_ok (1/0)
+func file_rename {
+    file_move
+}

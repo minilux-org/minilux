@@ -1,0 +1,239 @@
+# The Minilux Programming Language Standard Library
+# Title: SQLite Driver (Low-Level)
+# Version: 0.1.0
+# Author: OscarEEspinozaB <https://github.com/OscarEEspinozaB/>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+#
+# Usage:
+#   include "lib/sqlite.mi"
+#
+# All functions follow the $_arg_* / $_ret_* convention.
+# Requires sqlite3 CLI. Uses heredocs for safe SQL execution.
+#
+# Known limitations:
+#   - Column values containing the separator character (default "|") will
+#     cause db_col extraction to return incorrect results. Change
+#     $_db_separator to a rarer character if needed.
+#   - If the literal string __MLSQL__ appears on its own line in SQL,
+#     the heredoc terminates early. Extremely unlikely in practice.
+#   - Performance: N+2 shell() calls per query (1 query + 1 wc + N sed).
+#     Fine for scripting; use LIMIT for large result sets.
+
+# --- Global state ---
+$_db_path = ""
+$_db_err = ""
+$_db_separator = "|"
+$__db_tmpfile = "/tmp/_mldb_result.txt"
+
+# ============================================================
+# Internal Helpers
+# ============================================================
+
+# Escape single quotes for SQL by doubling them: ' -> ''
+# Pure Minilux char-by-char loop (no shell dependency).
+# Input:  $_arg_str
+# Output: $_ret_str
+func _db_escape {
+    $_ret_str = ""
+    $__de_i = 0
+    $__de_len = len($_arg_str)
+    while ($__de_i < $__de_len) {
+        $__de_ch = $_arg_str[$__de_i]
+        if ($__de_ch == "'") {
+            $_ret_str = $_ret_str + "''"
+        }
+        else {
+            $_ret_str = $_ret_str + $__de_ch
+        }
+        inc $__de_i + 1
+    }
+}
+
+# Core SQL execution via heredoc.
+# Input:  $__db_sql (SQL to execute)
+#         $__db_want_output (1 = capture to tmpfile, 0 = discard output)
+# Output: $__db_result (shell output or ""), $_db_err on error
+func _db_run_query {
+    $_db_err = ""
+    $__db_result = ""
+    if ($__db_want_output == 1) {
+        $__db_result = shell("sqlite3 -list -separator '" + $_db_separator + "' " + $_db_path + " <<'__MLSQL__' > " + $__db_tmpfile + " 2>&1\n" + $__db_sql + "\n__MLSQL__")
+        # Check if error was written to tmpfile
+        $__db_first = shell("head -1 " + $__db_tmpfile + " 2>/dev/null")
+        $__db_is_err = shell("printf '%s' '" + $__db_first + "' | grep -c '^Error' || true")
+        if (number($__db_is_err) > 0) {
+            $_db_err = $__db_first
+        }
+    }
+    else {
+        $__db_result = shell("sqlite3 " + $_db_path + " <<'__MLSQL__' 2>&1\n" + $__db_sql + "\n__MLSQL__")
+        # Check for error in output
+        $__db_is_err = shell("printf '%s' '" + $__db_result + "' | grep -c '^Error' || true")
+        if (number($__db_is_err) > 0) {
+            $_db_err = $__db_result
+        }
+    }
+}
+
+# ============================================================
+# Public Functions
+# ============================================================
+
+# Open a database connection (set path, verify sqlite3 is available).
+# Input:  $_arg_path (path to .db file)
+# Output: $_ret_ok (1/0)
+func db_open {
+    $_ret_ok = 0
+    $_db_err = ""
+    # Check sqlite3 is available
+    $__do_check = shell("command -v sqlite3 >/dev/null 2>&1 && echo yes || echo no")
+    if ($__do_check != "yes") {
+        $_db_err = "sqlite3 not found in PATH"
+    }
+    else {
+        $_db_path = $_arg_path
+        # Test with a simple query
+        $__db_sql = "SELECT 1;"
+        $__db_want_output = 0
+        _db_run_query
+        if ($_db_err == "") {
+            $_ret_ok = 1
+        }
+        else {
+            $_db_path = ""
+        }
+    }
+}
+
+# Close the database connection and clean up.
+func db_close {
+    $_db_path = ""
+    $_db_err = ""
+    $__dc_discard = shell("rm -f " + $__db_tmpfile + " 2>/dev/null")
+}
+
+# Execute SQL with no result (CREATE, INSERT, UPDATE, DELETE, etc.).
+# Input:  $_arg_sql
+# Output: $_ret_ok (1/0)
+func db_exec {
+    $_ret_ok = 0
+    $_db_err = ""
+    if ($_db_path == "") {
+        $_db_err = "No database open"
+    }
+    else {
+        $__db_sql = $_arg_sql
+        $__db_want_output = 0
+        _db_run_query
+        if ($_db_err == "") {
+            $_ret_ok = 1
+        }
+    }
+}
+
+# Execute a SELECT query and return rows as an array.
+# Input:  $_arg_sql
+# Output: $_ret_rows (array of pipe-separated strings), $_ret_count (int), $_ret_ok (1/0)
+func db_query {
+    $_ret_ok = 0
+    $_ret_rows = []
+    $_ret_count = 0
+    $_db_err = ""
+    if ($_db_path == "") {
+        $_db_err = "No database open"
+    }
+    else {
+        $__db_sql = $_arg_sql
+        $__db_want_output = 1
+        _db_run_query
+        if ($_db_err == "") {
+            # Count lines in tmpfile
+            $__dq_wc = shell("wc -l < " + $__db_tmpfile + " 2>/dev/null | tr -d ' '")
+            $_ret_count = number($__dq_wc)
+            # Read each line into array
+            $__dq_i = 1
+            while ($__dq_i <= $_ret_count) {
+                $__dq_line = shell("sed -n '" + $__dq_i + "p' " + $__db_tmpfile)
+                push $_ret_rows, $__dq_line
+                inc $__dq_i + 1
+            }
+            $_ret_ok = 1
+        }
+    }
+}
+
+# Execute a SELECT query and return only the first row.
+# Input:  $_arg_sql
+# Output: $_ret_row (pipe-separated string), $_ret_ok (1/0)
+func db_query_one {
+    $_ret_ok = 0
+    $_ret_row = ""
+    $_db_err = ""
+    if ($_db_path == "") {
+        $_db_err = "No database open"
+    }
+    else {
+        $__db_sql = $_arg_sql
+        $__db_want_output = 1
+        _db_run_query
+        if ($_db_err == "") {
+            $__dqo_wc = shell("wc -l < " + $__db_tmpfile + " 2>/dev/null | tr -d ' '")
+            if (number($__dqo_wc) > 0) {
+                $_ret_row = shell("sed -n '1p' " + $__db_tmpfile)
+                $_ret_ok = 1
+            }
+            else {
+                $_db_err = "No rows returned"
+            }
+        }
+    }
+}
+
+# Extract a column value from a pipe-separated row string.
+# Input:  $_arg_row (pipe-separated string), $_arg_index (1-based column number)
+# Output: $_ret_value
+func db_col {
+    $_ret_value = shell("cut -d'" + $_db_separator + "' -f" + $_arg_index + " <<'__MLCOL__'\n" + $_arg_row + "\n__MLCOL__")
+}
+
+# List all tables in the database.
+# Output: $_ret_rows (array), $_ret_count (int), $_ret_ok (1/0)
+func db_tables {
+    $_arg_sql = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+    db_query
+}
+
+# List column names for a given table.
+# Input:  $_arg_table
+# Output: $_ret_rows (array of column names), $_ret_count (int), $_ret_ok (1/0)
+func db_columns {
+    $_ret_ok = 0
+    $_ret_rows = []
+    $_ret_count = 0
+    $_db_err = ""
+    if ($_db_path == "") {
+        $_db_err = "No database open"
+    }
+    else {
+        $__dc_sql = "PRAGMA table_info(" + $_arg_table + ");"
+        $__db_sql = $__dc_sql
+        $__db_want_output = 1
+        _db_run_query
+        if ($_db_err == "") {
+            $__dc_wc = shell("wc -l < " + $__db_tmpfile + " 2>/dev/null | tr -d ' '")
+            $__dc_total = number($__dc_wc)
+            $__dc_i = 1
+            while ($__dc_i <= $__dc_total) {
+                $__dc_line = shell("sed -n '" + $__dc_i + "p' " + $__db_tmpfile)
+                # PRAGMA table_info returns: cid|name|type|notnull|dflt|pk
+                # Extract field 2 (name)
+                $__dc_name = shell("cut -d'" + $_db_separator + "' -f2 <<'__MLCOL__'\n" + $__dc_line + "\n__MLCOL__")
+                push $_ret_rows, $__dc_name
+                inc $__dc_i + 1
+            }
+            $_ret_count = $__dc_total
+            $_ret_ok = 1
+        }
+    }
+}

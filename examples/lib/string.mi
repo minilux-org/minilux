@@ -1,0 +1,171 @@
+# The Minilux Programming Language Standard Library
+# Title: String Library
+# Version: 0.1.0
+# Author: OscarEEspinozaB <https://github.com/OscarEEspinozaB/>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+#
+# Usage:
+#   include "lib/string.mi"
+#
+# All functions follow the $_arg_* / $_ret_* convention.
+# String manipulation via shell commands and pure Minilux.
+
+# --- Global state ---
+$_str_err = ""
+
+# ============================================================
+# str_trim - Remove leading and trailing whitespace
+# ============================================================
+# Input:  $_arg_str
+# Output: $_ret_str
+func str_trim {
+    $_str_err = ""
+    $_ret_str = shell("printf '%s' '" + $_arg_str + "' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'")
+}
+
+# ============================================================
+# str_length - Get string length
+# ============================================================
+# Input:  $_arg_str
+# Output: $_ret_value (int)
+func str_length {
+    $_str_err = ""
+    $_ret_value = len($_arg_str)
+}
+
+# ============================================================
+# str_contains - Check if string contains a substring
+# ============================================================
+# Input:  $_arg_str, $_arg_search
+# Output: $_ret_found (1 or 0)
+func str_contains {
+    $_str_err = ""
+    $__sc_result = shell("printf '%s' '" + $_arg_str + "' | grep -cF '" + $_arg_search + "' || true")
+    $_ret_found = number($__sc_result)
+    if ($_ret_found > 1) {
+        $_ret_found = 1
+    }
+}
+
+# ============================================================
+# str_replace - Replace all occurrences of a substring
+# ============================================================
+# Input:  $_arg_str, $_arg_from, $_arg_to
+# Output: $_ret_str
+# Note:   Uses | as sed delimiter. Avoid | in $_arg_from/$_arg_to.
+func str_replace {
+    $_str_err = ""
+    $_ret_str = shell("printf '%s' '" + $_arg_str + "' | sed 's|" + $_arg_from + "|" + $_arg_to + "|g'")
+}
+
+# ============================================================
+# str_starts_with - Check if string starts with prefix
+# ============================================================
+# Input:  $_arg_str, $_arg_prefix
+# Output: $_ret_found (1 or 0)
+func str_starts_with {
+    $_str_err = ""
+    $_ret_found = 0
+    $__ssw_plen = len($_arg_prefix)
+    $__ssw_slen = len($_arg_str)
+    if ($__ssw_plen <= $__ssw_slen) {
+        $__ssw_sub = shell("printf '%s' '" + $_arg_str + "' | cut -c1-" + $__ssw_plen)
+        if ($__ssw_sub == $_arg_prefix) {
+            $_ret_found = 1
+        }
+    }
+}
+
+# ============================================================
+# str_ends_with - Check if string ends with suffix
+# ============================================================
+# Input:  $_arg_str, $_arg_suffix
+# Output: $_ret_found (1 or 0)
+func str_ends_with {
+    $_str_err = ""
+    $_ret_found = 0
+    $__sew_xlen = len($_arg_suffix)
+    $__sew_slen = len($_arg_str)
+    if ($__sew_xlen <= $__sew_slen) {
+        $__sew_start = $__sew_slen - $__sew_xlen + 1
+        $__sew_sub = shell("printf '%s' '" + $_arg_str + "' | cut -c" + $__sew_start + "-" + $__sew_slen)
+        if ($__sew_sub == $_arg_suffix) {
+            $_ret_found = 1
+        }
+    }
+}
+
+# ============================================================
+# str_substring - Extract a substring
+# ============================================================
+# Input:  $_arg_str, $_arg_start (0-based), $_arg_length
+# Output: $_ret_str
+func str_substring {
+    $_str_err = ""
+    $__ss_start = $_arg_start + 1
+    $__ss_end = $_arg_start + $_arg_length
+    $_ret_str = shell("printf '%s' '" + $_arg_str + "' | cut -c" + $__ss_start + "-" + $__ss_end)
+}
+
+# ============================================================
+# str_split - Split string by delimiter
+# ============================================================
+# Input:  $_arg_str, $_arg_delim
+# Output: $_ret_str (newline-separated parts)
+# Note:   Uses | as sed delimiter. Avoid | in $_arg_delim.
+func str_split {
+    $_str_err = ""
+    $_ret_str = shell("printf '%s' '" + $_arg_str + "' | sed 's|" + $_arg_delim + "|\\n|g'")
+}
+
+# ============================================================
+# str_join - Join newline-separated string with delimiter
+# ============================================================
+# Input:  $_arg_str (newline-separated), $_arg_delim (single char)
+# Output: $_ret_str
+func str_join {
+    $_str_err = ""
+    $_ret_str = shell("printf '%s' '" + $_arg_str + "' | tr '\\n' '" + $_arg_delim + "'")
+}
+
+# ============================================================
+# str_repeat - Repeat a string N times
+# ============================================================
+# Input:  $_arg_str, $_arg_count
+# Output: $_ret_str
+func str_repeat {
+    $_str_err = ""
+    $_ret_str = ""
+    $__sr_i = 0
+    while ($__sr_i < $_arg_count) {
+        $_ret_str = $_ret_str + $_arg_str
+        inc $__sr_i + 1
+    }
+}
+
+# ============================================================
+# str_pad_left - Left-pad string to target length
+# ============================================================
+# Input:  $_arg_str, $_arg_length, $_arg_char (single char)
+# Output: $_ret_str
+func str_pad_left {
+    $_str_err = ""
+    $_ret_str = $_arg_str
+    while (len($_ret_str) < $_arg_length) {
+        $_ret_str = $_arg_char + $_ret_str
+    }
+}
+
+# ============================================================
+# str_pad_right - Right-pad string to target length
+# ============================================================
+# Input:  $_arg_str, $_arg_length, $_arg_char (single char)
+# Output: $_ret_str
+func str_pad_right {
+    $_str_err = ""
+    $_ret_str = $_arg_str
+    while (len($_ret_str) < $_arg_length) {
+        $_ret_str = $_ret_str + $_arg_char
+    }
+}

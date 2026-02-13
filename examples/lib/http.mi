@@ -1,0 +1,248 @@
+# The Minilux Programming Language Standard Library
+# Title: HTTP Library
+# Version: 0.2.0
+# Author: OscarEEspinozaB <https://github.com/OscarEEspinozaB/>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+#
+# Usage:
+#   include "lib/http.mi"
+#
+# All functions follow the $_arg_* / $_ret_* convention.
+# Requires curl to be installed.
+
+include "json.mi"
+
+# --- Global state ---
+$_http_err = ""
+$_http_timeout = 10
+$_http_headers = ""
+$_http_base_url = ""
+$_http_token = ""
+
+# ============================================================
+# Internal: _http_build_cmd - Build curl command prefix
+# ============================================================
+# Output: $__http_cmd (curl command string with timeout and headers)
+func _http_build_cmd {
+    $__http_cmd = "curl -s -m " + $_http_timeout
+    if ($_http_headers != "") {
+        $__http_cmd = $__http_cmd + " " + $_http_headers
+    }
+}
+
+# ============================================================
+# Internal: _http_resolve_url - Resolve path vs full URL
+# ============================================================
+# If $_http_base_url is set and $_arg_url starts with "/",
+# prepend the base URL. Full URLs are left unchanged.
+func _http_resolve_url {
+    if ($_http_base_url != "") {
+        if ($_arg_url[0] == "/") {
+            $_arg_url = $_http_base_url + $_arg_url
+        }
+    }
+}
+
+# ============================================================
+# http_init - Set the base URL for path-based requests
+# ============================================================
+# Input:  $_arg_url (base URL, e.g. "https://api.example.com")
+func http_init {
+    $_http_err = ""
+    $_http_base_url = $_arg_url
+}
+
+# ============================================================
+# http_set_token - Set Bearer authentication token
+# ============================================================
+# Input:  $_arg_value (token string)
+func http_set_token {
+    $_http_err = ""
+    $_http_token = $_arg_value
+    $_arg_key = "Authorization"
+    $_arg_value = "Bearer " + $_http_token
+    http_set_header
+}
+
+# ============================================================
+# http_get - Perform an HTTP GET request
+# ============================================================
+# Input:  $_arg_url (full URL or path if http_init was called)
+# Output: $_ret_content (response body), $_ret_ok (1/0)
+func http_get {
+    $_http_err = ""
+    $_ret_ok = 0
+    _http_resolve_url
+    _http_build_cmd
+    $_ret_content = shell($__http_cmd + " '" + $_arg_url + "'")
+    if ($_ret_content != "") {
+        $_ret_ok = 1
+    }
+    else {
+        $_http_err = "GET request failed or empty response: " + $_arg_url
+    }
+}
+
+# ============================================================
+# http_post - Perform an HTTP POST request
+# ============================================================
+# Input:  $_arg_url, $_arg_data (request body)
+# Output: $_ret_content (response body), $_ret_ok (1/0)
+func http_post {
+    $_http_err = ""
+    $_ret_ok = 0
+    _http_resolve_url
+    _http_build_cmd
+    $_ret_content = shell($__http_cmd + " -X POST -d '" + $_arg_data + "' '" + $_arg_url + "'")
+    if ($_ret_content != "") {
+        $_ret_ok = 1
+    }
+    else {
+        $_http_err = "POST request failed or empty response: " + $_arg_url
+    }
+}
+
+# ============================================================
+# http_put - Perform an HTTP PUT request
+# ============================================================
+# Input:  $_arg_url, $_arg_data (request body)
+# Output: $_ret_content (response body), $_ret_ok (1/0)
+func http_put {
+    $_http_err = ""
+    $_ret_ok = 0
+    _http_resolve_url
+    _http_build_cmd
+    $_ret_content = shell($__http_cmd + " -X PUT -d '" + $_arg_data + "' '" + $_arg_url + "'")
+    if ($_ret_content != "") {
+        $_ret_ok = 1
+    }
+    else {
+        $_http_err = "PUT request failed or empty response: " + $_arg_url
+    }
+}
+
+# ============================================================
+# http_delete - Perform an HTTP DELETE request
+# ============================================================
+# Input:  $_arg_url (full URL or path if http_init was called)
+# Output: $_ret_content (response body), $_ret_ok (1/0)
+func http_delete {
+    $_http_err = ""
+    $_ret_ok = 0
+    _http_resolve_url
+    _http_build_cmd
+    $_ret_content = shell($__http_cmd + " -X DELETE '" + $_arg_url + "'")
+    if ($_ret_content != "") {
+        $_ret_ok = 1
+    }
+    else {
+        $_http_err = "DELETE request failed or empty response: " + $_arg_url
+    }
+}
+
+# ============================================================
+# http_download - Download a URL to a file
+# ============================================================
+# Input:  $_arg_url, $_arg_path (destination file path)
+# Output: $_ret_ok (1/0)
+func http_download {
+    $_http_err = ""
+    $_ret_ok = 0
+    _http_resolve_url
+    _http_build_cmd
+    $__hd_discard = shell($__http_cmd + " -o '" + $_arg_path + "' '" + $_arg_url + "'")
+    $__hd_check = shell("test -f '" + $_arg_path + "' && echo yes || echo no")
+    if ($__hd_check == "yes") {
+        $_ret_ok = 1
+    }
+    else {
+        $_http_err = "Download failed: " + $_arg_url
+    }
+}
+
+# ============================================================
+# http_status - Get the HTTP status code of a URL
+# ============================================================
+# Input:  $_arg_url (full URL or path if http_init was called)
+# Output: $_ret_value (HTTP status code as int, e.g. 200)
+func http_status {
+    $_http_err = ""
+    _http_resolve_url
+    _http_build_cmd
+    $__hs_code = shell($__http_cmd + " -o /dev/null -w '%{http_code}' '" + $_arg_url + "'")
+    if ($__hs_code == "") {
+        $_ret_value = 0
+        $_http_err = "Failed to get status: " + $_arg_url
+    }
+    else {
+        $_ret_value = number($__hs_code)
+    }
+}
+
+# ============================================================
+# http_set_header - Add a custom HTTP header
+# ============================================================
+# Input:  $_arg_key (header name), $_arg_value (header value)
+# Note:   Headers accumulate until http_reset is called.
+func http_set_header {
+    $_http_headers = $_http_headers + " -H '" + $_arg_key + ": " + $_arg_value + "'"
+}
+
+# ============================================================
+# http_get_field - GET request and extract a JSON field
+# ============================================================
+# Input:  $_arg_url (full URL or path), $_arg_field (JSON field name)
+# Output: $_ret_value (extracted value), $_ret_ok (1/0)
+func http_get_field {
+    $_http_err = ""
+    $__hgf_field = $_arg_field
+    http_get
+    if ($_ret_ok == 1) {
+        $_arg_json = $_ret_content
+        $_arg_field = $__hgf_field
+        json_get_string
+        if ($_json_err != "") {
+            $_http_err = $_json_err
+            $_ret_ok = 0
+        }
+    }
+    else {
+        $_ret_value = ""
+    }
+}
+
+# ============================================================
+# http_post_json - POST with automatic JSON content type
+# ============================================================
+# Input:  $_arg_url (full URL or path), $_arg_data (JSON body)
+# Output: $_ret_content (response body), $_ret_ok (1/0)
+func http_post_json {
+    $_arg_key = "Content-Type"
+    $_arg_value = "application/json"
+    http_set_header
+    http_post
+}
+
+# ============================================================
+# http_put_json - PUT with automatic JSON content type
+# ============================================================
+# Input:  $_arg_url (full URL or path), $_arg_data (JSON body)
+# Output: $_ret_content (response body), $_ret_ok (1/0)
+func http_put_json {
+    $_arg_key = "Content-Type"
+    $_arg_value = "application/json"
+    http_set_header
+    http_put
+}
+
+# ============================================================
+# http_reset - Clear all HTTP state (headers, timeout, base URL)
+# ============================================================
+func http_reset {
+    $_http_err = ""
+    $_http_timeout = 10
+    $_http_headers = ""
+    $_http_base_url = ""
+    $_http_token = ""
+}
