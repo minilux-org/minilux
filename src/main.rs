@@ -62,6 +62,20 @@ fn execute_file(path: &str) -> Result<(), String> {
     result
 }
 
+fn help_repl() {
+
+    println!("Type \"exit\" to quit");
+    println!();
+    println!("- \"ls\"    : list files in current directory ");
+    println!("- \"show\"  : show current buffer");
+    println!("- \"clear\" : clear current buffer");
+    println!("- \"save\"  : save current buffer to a file");
+    println!("- \"read\"  : read file to current buffer");
+    println!("- \"run\"   : run (execute) current buffer using minilux interpreter");
+    println!();
+
+}
+
 fn run_repl() {
     let stdin = io::stdin();
     let mut reader = stdin.lock();
@@ -71,8 +85,7 @@ fn run_repl() {
 
     println!("Minilux Interpreter Console (REPL)");
     println!("Version 0.1.0 on {} -- [Rust]", get_system_info());
-    println!("Type \"exit\" to quit");
-    println!();
+    help_repl();
 
     loop {
         input.clear();
@@ -89,6 +102,11 @@ fn run_repl() {
         }
 
         if trimmed.is_empty() {
+            continue;
+        }
+
+        if trimmed == "help" {
+            help_repl();
             continue;
         }
 
