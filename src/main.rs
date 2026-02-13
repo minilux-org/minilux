@@ -67,6 +67,8 @@ fn run_repl() {
     let mut reader = stdin.lock();
     let mut input = String::new();
 
+    let mut text: String =  "".to_owned();
+
     println!("Minilux Interpreter Console (REPL)");
     println!("Version 0.1.0 on {} -- [Rust]", get_system_info());
     println!("Type \"exit\" to quit");
@@ -90,13 +92,62 @@ fn run_repl() {
             continue;
         }
 
-        let mut parser = Parser::new(trimmed);
-        let statements = parser.parse();
-
-        let mut interpreter = Interpreter::new();
-        if let Err(e) = interpreter.execute(statements) {
-            eprintln!("Error: {}", e);
+        if trimmed == "show" {
+            println!("{}", text);
+            continue;
         }
+
+        if trimmed == "clear" {
+            text.clear();
+            continue;
+        }
+
+        if trimmed == "ls" {
+            let paths = fs::read_dir("./").unwrap();
+
+            for path in paths {
+                println!("{}", path.unwrap().path().display())
+            }
+            continue;
+        }
+
+        if trimmed == "save" {
+            input.clear();
+            if reader.read_line(&mut input).is_err() {
+                continue;
+            }
+            let file = input.trim();
+            fs::write( file, text.clone()).expect("err");
+            println!("save file: {}", file);
+            continue;
+        }
+
+        if trimmed == "read" {
+            text.clear();
+            input.clear();
+            if reader.read_line(&mut input).is_err() {
+                continue;
+            }
+            let file = input.trim();
+            text = fs::read_to_string(file).expect("err");
+            println!("load file: {}", file);
+            continue;
+        }
+
+        if trimmed == "run" {
+            let mut parser = Parser::new(&text);
+            let statements = parser.parse();
+
+            let mut interpreter = Interpreter::new();
+            if let Err(e) = interpreter.execute(statements) {
+                eprintln!("Error: {}", e);
+            }
+            continue;
+        }
+
+
+        text.push_str(trimmed);
+        text.push_str("\n");
     }
 }
 
