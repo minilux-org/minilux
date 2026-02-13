@@ -1,7 +1,7 @@
 # The Minilux Programming Language Makefile
 all:
-	cargo build --release
-	cp target/release/minilux ./minilux
+	cargo build 
+	cp target/debug/minilux ./minilux
 
 # MAC USERS: Edit the install path to /usr/local/bin/minilux instead
 # As you won't be able to install directly into /usr/bin without major tinkering.
@@ -9,7 +9,7 @@ all:
 
 install:
 	cargo build --release
-	sudo cp minilux /usr/bin/minilux
+	sudo cp target/release/minilux /usr/bin/minilux
 	sudo chmod 755 /usr/bin/minilux
 
 uninstall:

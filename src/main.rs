@@ -62,15 +62,30 @@ fn execute_file(path: &str) -> Result<(), String> {
     result
 }
 
+fn help_repl() {
+
+    println!("Type \"exit\" to quit");
+    println!();
+    println!("- \"ls\"    : list files in current directory ");
+    println!("- \"show\"  : show current buffer");
+    println!("- \"clear\" : clear current buffer");
+    println!("- \"save\"  : save current buffer to a file");
+    println!("- \"read\"  : read file to current buffer");
+    println!("- \"run\"   : run (execute) current buffer using minilux interpreter");
+    println!();
+
+}
+
 fn run_repl() {
     let stdin = io::stdin();
     let mut reader = stdin.lock();
     let mut input = String::new();
 
+    let mut text: String =  "".to_owned();
+
     println!("Minilux Interpreter Console (REPL)");
     println!("Version 0.1.0 on {} -- [Rust]", get_system_info());
-    println!("Type \"exit\" to quit");
-    println!();
+    help_repl();
 
     loop {
         input.clear();
@@ -90,13 +105,67 @@ fn run_repl() {
             continue;
         }
 
-        let mut parser = Parser::new(trimmed);
-        let statements = parser.parse();
-
-        let mut interpreter = Interpreter::new();
-        if let Err(e) = interpreter.execute(statements) {
-            eprintln!("Error: {}", e);
+        if trimmed == "help" {
+            help_repl();
+            continue;
         }
+
+        if trimmed == "show" {
+            println!("{}", text);
+            continue;
+        }
+
+        if trimmed == "clear" {
+            text.clear();
+            continue;
+        }
+
+        if trimmed == "ls" {
+            let paths = fs::read_dir("./").unwrap();
+
+            for path in paths {
+                println!("{}", path.unwrap().path().display())
+            }
+            continue;
+        }
+
+        if trimmed == "save" {
+            input.clear();
+            if reader.read_line(&mut input).is_err() {
+                continue;
+            }
+            let file = input.trim();
+            fs::write( file, text.clone()).expect("err");
+            println!("save file: {}", file);
+            continue;
+        }
+
+        if trimmed == "read" {
+            text.clear();
+            input.clear();
+            if reader.read_line(&mut input).is_err() {
+                continue;
+            }
+            let file = input.trim();
+            text = fs::read_to_string(file).expect("err");
+            println!("load file: {}", file);
+            continue;
+        }
+
+        if trimmed == "run" {
+            let mut parser = Parser::new(&text);
+            let statements = parser.parse();
+
+            let mut interpreter = Interpreter::new();
+            if let Err(e) = interpreter.execute(statements) {
+                eprintln!("Error: {}", e);
+            }
+            continue;
+        }
+
+
+        text.push_str(trimmed);
+        text.push_str("\n");
     }
 }
 
