@@ -1,0 +1,184 @@
+#!/usr/bin/env minilux
+
+# The Minilux Programming Language Example
+# Title: String Library Demo
+# Version: 0.1.0
+# Author: OscarEEspinozaB <https://github.com/OscarEEspinozaB/>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+
+include "lib/string.mi"
+
+printf("=== Minilux String Library Demo ===")
+printf("")
+
+# --- str_trim ---
+$_arg_str = "  hello world  "
+str_trim
+if ($_ret_str == "hello world") {
+    printf("[OK] str_trim: trimmed whitespace")
+}
+else {
+    printf("[FAIL] str_trim: expected 'hello world', got '", $_ret_str, "'")
+}
+
+# --- str_length ---
+$_arg_str = "hello"
+str_length
+if ($_ret_value == 5) {
+    printf("[OK] str_length: 5")
+}
+else {
+    printf("[FAIL] str_length: expected 5, got ", $_ret_value)
+}
+
+# --- str_contains (found) ---
+$_arg_str = "hello world"
+$_arg_search = "world"
+str_contains
+if ($_ret_found == 1) {
+    printf("[OK] str_contains: found 'world'")
+}
+else {
+    printf("[FAIL] str_contains: expected 1, got ", $_ret_found)
+}
+
+# --- str_contains (not found) ---
+$_arg_str = "hello world"
+$_arg_search = "xyz"
+str_contains
+if ($_ret_found == 0) {
+    printf("[OK] str_contains: 'xyz' not found")
+}
+else {
+    printf("[FAIL] str_contains: expected 0, got ", $_ret_found)
+}
+
+# --- str_replace ---
+$_arg_str = "hello world"
+$_arg_from = "world"
+$_arg_to = "minilux"
+str_replace
+if ($_ret_str == "hello minilux") {
+    printf("[OK] str_replace: 'world' -> 'minilux'")
+}
+else {
+    printf("[FAIL] str_replace: expected 'hello minilux', got '", $_ret_str, "'")
+}
+
+# --- str_starts_with (true) ---
+$_arg_str = "hello world"
+$_arg_prefix = "hello"
+str_starts_with
+if ($_ret_found == 1) {
+    printf("[OK] str_starts_with: starts with 'hello'")
+}
+else {
+    printf("[FAIL] str_starts_with: expected 1, got ", $_ret_found)
+}
+
+# --- str_starts_with (false) ---
+$_arg_str = "hello world"
+$_arg_prefix = "world"
+str_starts_with
+if ($_ret_found == 0) {
+    printf("[OK] str_starts_with: does not start with 'world'")
+}
+else {
+    printf("[FAIL] str_starts_with: expected 0, got ", $_ret_found)
+}
+
+# --- str_ends_with (true) ---
+$_arg_str = "hello world"
+$_arg_suffix = "world"
+str_ends_with
+if ($_ret_found == 1) {
+    printf("[OK] str_ends_with: ends with 'world'")
+}
+else {
+    printf("[FAIL] str_ends_with: expected 1, got ", $_ret_found)
+}
+
+# --- str_ends_with (false) ---
+$_arg_str = "hello world"
+$_arg_suffix = "hello"
+str_ends_with
+if ($_ret_found == 0) {
+    printf("[OK] str_ends_with: does not end with 'hello'")
+}
+else {
+    printf("[FAIL] str_ends_with: expected 0, got ", $_ret_found)
+}
+
+# --- str_substring ---
+$_arg_str = "hello world"
+$_arg_start = 6
+$_arg_length = 5
+str_substring
+if ($_ret_str == "world") {
+    printf("[OK] str_substring: extracted 'world'")
+}
+else {
+    printf("[FAIL] str_substring: expected 'world', got '", $_ret_str, "'")
+}
+
+# --- str_split ---
+$_arg_str = "one,two,three"
+$_arg_delim = ","
+str_split
+$__demo_expected = "one\ntwo\nthree"
+if ($_ret_str == $__demo_expected) {
+    printf("[OK] str_split: split by ','")
+}
+else {
+    printf("[FAIL] str_split: unexpected result")
+}
+
+# --- str_join ---
+$_arg_str = $_ret_str
+$_arg_delim = "-"
+str_join
+if ($_ret_str == "one-two-three") {
+    printf("[OK] str_join: joined with '-'")
+}
+else {
+    printf("[FAIL] str_join: expected 'one-two-three', got '", $_ret_str, "'")
+}
+
+# --- str_repeat ---
+$_arg_str = "ab"
+$_arg_count = 3
+str_repeat
+if ($_ret_str == "ababab") {
+    printf("[OK] str_repeat: 'ab' x 3 = 'ababab'")
+}
+else {
+    printf("[FAIL] str_repeat: expected 'ababab', got '", $_ret_str, "'")
+}
+
+# --- str_pad_left ---
+$_arg_str = "42"
+$_arg_length = 5
+$_arg_char = "0"
+str_pad_left
+if ($_ret_str == "00042") {
+    printf("[OK] str_pad_left: '42' -> '00042'")
+}
+else {
+    printf("[FAIL] str_pad_left: expected '00042', got '", $_ret_str, "'")
+}
+
+# --- str_pad_right ---
+$_arg_str = "hi"
+$_arg_length = 5
+$_arg_char = "."
+str_pad_right
+if ($_ret_str == "hi...") {
+    printf("[OK] str_pad_right: 'hi' -> 'hi...'")
+}
+else {
+    printf("[FAIL] str_pad_right: expected 'hi...', got '", $_ret_str, "'")
+}
+
+printf("")
+printf("=== Demo complete ===")

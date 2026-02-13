@@ -1,0 +1,68 @@
+# functions_demo.mi — Demonstrates function parameters, return values, and local scope
+
+# --- Function with params and return value ---
+func add($a, $b) {
+    return $a + $b
+}
+
+$result = add(3, 4)
+printf("add(3, 4) = ", $result)
+
+# --- Statement-level call with args ---
+func greet($name, $age) {
+    printf("Hello, ", $name, "! You are ", $age, " years old.")
+}
+
+greet("Alexia", 42)
+
+# --- Multiple return via array ---
+func swap($x, $y) {
+    return [$y, $x]
+}
+
+$pair = swap(1, 2)
+printf("swap(1, 2) = [", $pair[0], ", ", $pair[1], "]")
+
+# --- No-arg functions (backward compat) ---
+func banner {
+    printf("=== Banner (no args) ===")
+}
+
+banner
+
+# --- No-arg with parens ---
+func banner2() {
+    printf("=== Banner2 (empty parens) ===")
+}
+
+banner2()
+
+# --- Param shadowing: local param doesn't overwrite global ---
+$x = 100
+func shadow_test($x) {
+    printf("Inside shadow_test: $x = ", $x)
+}
+
+shadow_test(999)
+printf("After shadow_test: $x = ", $x)
+
+# --- Missing args default to Nil ---
+func needs_two($a, $b) {
+    printf("a = ", $a, ", b = ", $b)
+}
+
+needs_two(42)
+
+# --- Nested function calls ---
+func mul($a, $b) {
+    return $a * $b
+}
+
+$nested = add(1, mul(2, 3))
+printf("add(1, mul(2, 3)) = ", $nested)
+
+# --- Return value used in expression ---
+$calc = add(10, 20) + mul(3, 4)
+printf("add(10, 20) + mul(3, 4) = ", $calc)
+
+printf("All function tests passed!")

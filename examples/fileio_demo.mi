@@ -1,0 +1,212 @@
+#!/usr/bin/env minilux
+
+# The Minilux Programming Language Example
+# Title: File I/O Library Demo
+# Version: 0.1.0
+# Author: OscarEEspinozaB <https://github.com/OscarEEspinozaB/>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+
+include "lib/fileio.mi"
+
+printf("=== Minilux File I/O Demo ===")
+printf("")
+
+# --- Initialize with base path ---
+$_arg_path = "/tmp/minilux_fileio_test"
+file_init
+if ($_ret_ok == 1) {
+    printf("[OK] file_init: base path set to /tmp/minilux_fileio_test")
+}
+else {
+    printf("[FAIL] file_init: ", $_file_err)
+}
+
+# --- Create a subdirectory ---
+$_arg_path = "data"
+dir_create
+if ($_ret_ok == 1) {
+    printf("[OK] dir_create: data/")
+}
+else {
+    printf("[FAIL] dir_create: ", $_file_err)
+}
+
+# --- Write a file ---
+$_arg_path = "data/hello.txt"
+$_arg_data = "Hello from Minilux!"
+file_write
+if ($_ret_ok == 1) {
+    printf("[OK] file_write: data/hello.txt")
+}
+else {
+    printf("[FAIL] file_write: ", $_file_err)
+}
+
+# --- Read it back ---
+$_arg_path = "data/hello.txt"
+file_read
+if ($_ret_ok == 1) {
+    printf("[OK] file_read: ", $_ret_content)
+}
+else {
+    printf("[FAIL] file_read: ", $_file_err)
+}
+
+# --- Append to it ---
+$_arg_path = "data/hello.txt"
+$_arg_data = " And a second line."
+file_update
+if ($_ret_ok == 1) {
+    printf("[OK] file_update: appended text")
+}
+else {
+    printf("[FAIL] file_update: ", $_file_err)
+}
+
+# --- Read again to verify append ---
+$_arg_path = "data/hello.txt"
+file_read
+if ($_ret_ok == 1) {
+    printf("[OK] file_read (after append): ", $_ret_content)
+}
+else {
+    printf("[FAIL] file_read: ", $_file_err)
+}
+
+# --- Check existence ---
+$_arg_path = "data/hello.txt"
+file_check
+printf("[OK] file_check: exists = ", $_ret_exists)
+
+# --- File metadata ---
+$_arg_path = "data/hello.txt"
+file_size
+if ($_ret_ok == 1) {
+    printf("[OK] file_size: ", $_ret_value, " bytes")
+}
+else {
+    printf("[FAIL] file_size: ", $_file_err)
+}
+
+$_arg_path = "data/hello.txt"
+file_perms
+if ($_ret_ok == 1) {
+    printf("[OK] file_perms: ", $_ret_value)
+}
+else {
+    printf("[FAIL] file_perms: ", $_file_err)
+}
+
+$_arg_path = "data/hello.txt"
+file_modified
+if ($_ret_ok == 1) {
+    printf("[OK] file_modified: ", $_ret_value)
+}
+else {
+    printf("[FAIL] file_modified: ", $_file_err)
+}
+
+# --- List files ---
+$_arg_path = "data"
+file_list
+if ($_ret_ok == 1) {
+    printf("[OK] file_list: ", $_ret_content)
+}
+else {
+    printf("[FAIL] file_list: ", $_file_err)
+}
+
+# --- Copy file ---
+$_arg_src = "data/hello.txt"
+$_arg_dest = "data/hello_backup.txt"
+file_copy
+if ($_ret_ok == 1) {
+    printf("[OK] file_copy: hello.txt -> hello_backup.txt")
+}
+else {
+    printf("[FAIL] file_copy: ", $_file_err)
+}
+
+# --- Verify copy exists ---
+$_arg_path = "data/hello_backup.txt"
+file_check
+printf("[OK] file_check (backup): exists = ", $_ret_exists)
+
+# --- Rename (move) backup ---
+$_arg_src = "data/hello_backup.txt"
+$_arg_dest = "data/hello_renamed.txt"
+file_rename
+if ($_ret_ok == 1) {
+    printf("[OK] file_rename: hello_backup.txt -> hello_renamed.txt")
+}
+else {
+    printf("[FAIL] file_rename: ", $_file_err)
+}
+
+# --- List files again ---
+$_arg_path = "data"
+file_list
+if ($_ret_ok == 1) {
+    printf("[OK] file_list (after copy/rename): ", $_ret_content)
+}
+else {
+    printf("[FAIL] file_list: ", $_file_err)
+}
+
+# --- Move file ---
+$_arg_src = "data/hello_renamed.txt"
+$_arg_dest = "data/hello_moved.txt"
+file_move
+if ($_ret_ok == 1) {
+    printf("[OK] file_move: hello_renamed.txt -> hello_moved.txt")
+}
+else {
+    printf("[FAIL] file_move: ", $_file_err)
+}
+
+# --- Check non-existent file ---
+$_arg_path = "data/nonexistent.txt"
+file_check
+printf("[OK] file_check (nonexistent): exists = ", $_ret_exists)
+
+# --- Cleanup ---
+printf("")
+printf("=== Cleanup ===")
+
+$_arg_path = "data/hello.txt"
+file_delete
+if ($_ret_ok == 1) {
+    printf("[OK] file_delete: hello.txt")
+}
+else {
+    printf("[FAIL] file_delete: ", $_file_err)
+}
+
+$_arg_path = "data/hello_moved.txt"
+file_delete
+if ($_ret_ok == 1) {
+    printf("[OK] file_delete: hello_moved.txt")
+}
+else {
+    printf("[FAIL] file_delete: ", $_file_err)
+}
+
+$_arg_path = "data"
+dir_remove
+if ($_ret_ok == 1) {
+    printf("[OK] dir_remove: data/")
+}
+else {
+    printf("[FAIL] dir_remove: ", $_file_err)
+}
+
+# Reset library state
+file_reset
+printf("[OK] file_reset: base path cleared")
+
+# Remove the test base directory
+$__cleanup = shell("rmdir /tmp/minilux_fileio_test 2>/dev/null")
+
+printf("")
+printf("=== Demo complete ===")

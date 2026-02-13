@@ -79,6 +79,105 @@ pub enum Token {
     Eof,
 }
 
+/// Tokens that act as expression-level built-in functions (called with parens).
+/// Used by both the parser and formatter to avoid repeating this list.
+pub const EXPR_BUILTINS: &[Token] = &[
+    Token::Shell,
+    Token::Len,
+    Token::Lower,
+    Token::Upper,
+    Token::Number,
+    Token::Printf,
+    Token::Sleep,
+];
+
+/// (canonical_name, Token) — single source of truth for keyword ↔ string mapping.
+pub const KEYWORDS: &[(&str, Token)] = &[
+    ("if", Token::If),
+    ("elseif", Token::Elseif),
+    ("else", Token::Else),
+    ("while", Token::While),
+    ("printf", Token::Printf),
+    ("shell", Token::Shell),
+    ("len", Token::Len),
+    ("sleep", Token::Sleep),
+    ("inc", Token::Inc),
+    ("dec", Token::Dec),
+    ("array", Token::Array),
+    ("push", Token::Push),
+    ("pop", Token::Pop),
+    ("shift", Token::Shift),
+    ("unshift", Token::Unshift),
+    ("sockopen", Token::Sockopen),
+    ("sockclose", Token::Sockclose),
+    ("sockwrite", Token::Sockwrite),
+    ("sockread", Token::Sockread),
+    ("sockstatus", Token::Sockstatus),
+    ("read", Token::Read),
+    ("lower", Token::Lower),
+    ("upper", Token::Upper),
+    ("number", Token::Number),
+    ("include", Token::Include),
+    ("func", Token::Function),
+    ("return", Token::Return),
+    ("AND", Token::And),
+    ("OR", Token::Or),
+];
+
+/// Aliases that also resolve to keyword tokens (not canonical output names).
+pub const KEYWORD_ALIASES: &[(&str, Token)] = &[
+    ("print", Token::Printf),
+    ("strlen", Token::Len),
+    ("function", Token::Function),
+];
+
+/// Exact-match keyword lookup (used by the lexer itself).
+pub fn match_keyword(name: &str) -> Option<Token> {
+    for &(kw, ref tok) in KEYWORDS.iter().chain(KEYWORD_ALIASES.iter()) {
+        if name == kw {
+            return Some(tok.clone());
+        }
+    }
+    None
+}
+
+/// Canonical string representation for any Token.
+pub fn token_to_str(token: &Token) -> &'static str {
+    for &(name, ref tok) in KEYWORDS {
+        if tok == token {
+            return name;
+        }
+    }
+    match token {
+        Token::Not => "!",
+        Token::Plus => "+",
+        Token::Minus => "-",
+        Token::Star => "*",
+        Token::Slash => "/",
+        Token::Percent => "%",
+        Token::Equals => "=",
+        Token::EqualEqual => "==",
+        Token::NotEqual => "!=",
+        Token::Less => "<",
+        Token::LessEqual => "<=",
+        Token::Greater => ">",
+        Token::GreaterEqual => ">=",
+        Token::Ampersand => "&",
+        Token::Pipe => "|",
+        Token::At => "@",
+        Token::LeftBrace => "{",
+        Token::RightBrace => "}",
+        Token::LeftParen => "(",
+        Token::RightParen => ")",
+        Token::LeftBracket => "[",
+        Token::RightBracket => "]",
+        Token::Semicolon => ";",
+        Token::Comma => ",",
+        Token::Dot => ".",
+        _ => "",
+    }
+}
+
 pub struct Lexer<'a> {
     input: Peekable<Chars<'a>>,
     current: Option<char>,
@@ -318,38 +417,7 @@ impl<'a> Lexer<'a> {
             Some(ch) if ch.is_ascii_digit() => Token::Int(self.read_number()),
             Some(ch) if ch.is_alphabetic() || ch == '_' => {
                 let ident = self.read_identifier();
-                match ident.as_str() {
-                    "if" => Token::If,
-                    "elseif" => Token::Elseif,
-                    "else" => Token::Else,
-                    "while" => Token::While,
-                    "printf" | "print" => Token::Printf,
-                    "shell" => Token::Shell,
-                    "len" => Token::Len,
-                    "sleep" => Token::Sleep,
-                    "inc" => Token::Inc,
-                    "dec" => Token::Dec,
-                    "array" => Token::Array,
-                    "push" => Token::Push,
-                    "pop" => Token::Pop,
-                    "shift" => Token::Shift,
-                    "unshift" => Token::Unshift,
-                    "sockopen" => Token::Sockopen,
-                    "sockclose" => Token::Sockclose,
-                    "sockwrite" => Token::Sockwrite,
-                    "sockread" => Token::Sockread,
-                    "sockstatus" => Token::Sockstatus,
-                    "read" => Token::Read,
-                    "lower" => Token::Lower,
-                    "upper" => Token::Upper,
-                    "number" => Token::Number,
-                    "include" => Token::Include,
-                    "function" | "func" => Token::Function,
-                    "return" => Token::Return,
-                    "AND" => Token::And,
-                    "OR" => Token::Or,
-                    _ => Token::Variable(ident),
-                }
+                match_keyword(&ident).unwrap_or(Token::Variable(ident))
             }
             Some(_) => {
                 self.advance();

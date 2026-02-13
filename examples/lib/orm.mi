@@ -1,0 +1,234 @@
+# The Minilux Programming Language Standard Library
+# Title: SQLite ORM (High-Level CRUD)
+# Version: 0.1.0
+# Author: OscarEEspinozaB <https://github.com/OscarEEspinozaB/>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+#
+# Usage:
+#   include "lib/orm.mi"
+#
+# All functions follow the $_arg_* / $_ret_* convention.
+# Depends on sqlite.mi (included automatically).
+# Tables must be created manually via db_exec with raw SQL.
+#
+# Safety: orm_update and orm_delete refuse to execute without a WHERE clause
+# to prevent accidental mass operations.
+
+include "sqlite.mi"
+
+# --- Global state ---
+$_orm_err = ""
+
+# ============================================================
+# orm_insert - Insert a row into a table
+# ============================================================
+# Input:  $_arg_table, $_arg_columns (array), $_arg_values (array)
+# Output: $_ret_ok (1/0)
+func orm_insert {
+    $_ret_ok = 0
+    $_orm_err = ""
+    # Build column list
+    $__oi_cols = ""
+    $__oi_vals = ""
+    $__oi_i = 0
+    $__oi_len = len($_arg_columns)
+    while ($__oi_i < $__oi_len) {
+        if ($__oi_i > 0) {
+            $__oi_cols = $__oi_cols + ", "
+            $__oi_vals = $__oi_vals + ", "
+        }
+        $__oi_cols = $__oi_cols + $_arg_columns[$__oi_i]
+        # Detect if value is numeric (Int + 0 == Int)
+        $__oi_test = $_arg_values[$__oi_i] + 0
+        if ($__oi_test == $_arg_values[$__oi_i]) {
+            $__oi_vals = $__oi_vals + $_arg_values[$__oi_i]
+        }
+        else {
+            # String value — escape single quotes
+            $_arg_str = $_arg_values[$__oi_i]
+            _db_escape
+            $__oi_vals = $__oi_vals + "'" + $_ret_str + "'"
+        }
+        inc $__oi_i + 1
+    }
+    $_arg_sql = "INSERT INTO " + $_arg_table + " (" + $__oi_cols + ") VALUES (" + $__oi_vals + ");"
+    db_exec
+    if ($_ret_ok != 1) {
+        $_orm_err = $_db_err
+    }
+}
+
+# ============================================================
+# orm_select - Select rows from a table
+# ============================================================
+# Input:  $_arg_table, $_arg_where (optional, "" for all),
+#         $_arg_fields (optional, "" or "*" for all columns)
+# Output: $_ret_rows (array), $_ret_count (int), $_ret_ok (1/0)
+func orm_select {
+    $_ret_ok = 0
+    $_orm_err = ""
+    $__os_fields = $_arg_fields
+    if ($__os_fields == "") {
+        $__os_fields = "*"
+    }
+    $__os_sql = "SELECT " + $__os_fields + " FROM " + $_arg_table
+    if ($_arg_where != "") {
+        $__os_sql = $__os_sql + " WHERE " + $_arg_where
+    }
+    $__os_sql = $__os_sql + ";"
+    $_arg_sql = $__os_sql
+    db_query
+    if ($_ret_ok != 1) {
+        $_orm_err = $_db_err
+    }
+}
+
+# ============================================================
+# orm_select_one - Select a single row from a table
+# ============================================================
+# Input:  $_arg_table, $_arg_where
+# Output: $_ret_row (pipe-separated string), $_ret_ok (1/0)
+func orm_select_one {
+    $_ret_ok = 0
+    $_orm_err = ""
+    $__oso_sql = "SELECT * FROM " + $_arg_table
+    if ($_arg_where != "") {
+        $__oso_sql = $__oso_sql + " WHERE " + $_arg_where
+    }
+    $__oso_sql = $__oso_sql + " LIMIT 1;"
+    $_arg_sql = $__oso_sql
+    db_query_one
+    if ($_ret_ok != 1) {
+        $_orm_err = $_db_err
+    }
+}
+
+# ============================================================
+# orm_update - Update rows in a table (WHERE required)
+# ============================================================
+# Input:  $_arg_table, $_arg_columns (array), $_arg_values (array),
+#         $_arg_where (REQUIRED, refuses empty)
+# Output: $_ret_ok (1/0)
+func orm_update {
+    $_ret_ok = 0
+    $_orm_err = ""
+    if ($_arg_where == "") {
+        $_orm_err = "orm_update refuses empty WHERE clause (safety guard)"
+    }
+    else {
+        # Build SET clause
+        $__ou_set = ""
+        $__ou_i = 0
+        $__ou_len = len($_arg_columns)
+        while ($__ou_i < $__ou_len) {
+            if ($__ou_i > 0) {
+                $__ou_set = $__ou_set + ", "
+            }
+            $__ou_set = $__ou_set + $_arg_columns[$__ou_i] + " = "
+            # Detect if value is numeric
+            $__ou_test = $_arg_values[$__ou_i] + 0
+            if ($__ou_test == $_arg_values[$__ou_i]) {
+                $__ou_set = $__ou_set + $_arg_values[$__ou_i]
+            }
+            else {
+                $_arg_str = $_arg_values[$__ou_i]
+                _db_escape
+                $__ou_set = $__ou_set + "'" + $_ret_str + "'"
+            }
+            inc $__ou_i + 1
+        }
+        $_arg_sql = "UPDATE " + $_arg_table + " SET " + $__ou_set + " WHERE " + $_arg_where + ";"
+        db_exec
+        if ($_ret_ok != 1) {
+            $_orm_err = $_db_err
+        }
+    }
+}
+
+# ============================================================
+# orm_delete - Delete rows from a table (WHERE required)
+# ============================================================
+# Input:  $_arg_table, $_arg_where (REQUIRED, refuses empty)
+# Output: $_ret_ok (1/0)
+func orm_delete {
+    $_ret_ok = 0
+    $_orm_err = ""
+    if ($_arg_where == "") {
+        $_orm_err = "orm_delete refuses empty WHERE clause (safety guard)"
+    }
+    else {
+        $_arg_sql = "DELETE FROM " + $_arg_table + " WHERE " + $_arg_where + ";"
+        db_exec
+        if ($_ret_ok != 1) {
+            $_orm_err = $_db_err
+        }
+    }
+}
+
+# ============================================================
+# orm_count - Count rows in a table
+# ============================================================
+# Input:  $_arg_table, $_arg_where (optional, "" for all)
+# Output: $_ret_value (int), $_ret_ok (1/0)
+func orm_count {
+    $_ret_ok = 0
+    $_orm_err = ""
+    $__oc_sql = "SELECT COUNT(*) FROM " + $_arg_table
+    if ($_arg_where != "") {
+        $__oc_sql = $__oc_sql + " WHERE " + $_arg_where
+    }
+    $__oc_sql = $__oc_sql + ";"
+    $_arg_sql = $__oc_sql
+    db_query_one
+    if ($_ret_ok == 1) {
+        $_ret_value = number($_ret_row)
+    }
+    else {
+        $_ret_value = 0
+        $_orm_err = $_db_err
+    }
+}
+
+# ============================================================
+# orm_find_by - Find rows matching a single field value
+# ============================================================
+# Input:  $_arg_table, $_arg_field, $_arg_value
+# Output: $_ret_rows (array), $_ret_count (int), $_ret_ok (1/0)
+func orm_find_by {
+    $_ret_ok = 0
+    $_orm_err = ""
+    # Detect if value is numeric
+    $__of_test = $_arg_value + 0
+    if ($__of_test == $_arg_value) {
+        $_arg_where = $_arg_field + " = " + $_arg_value
+    }
+    else {
+        $_arg_str = $_arg_value
+        _db_escape
+        $_arg_where = $_arg_field + " = '" + $_ret_str + "'"
+    }
+    $_arg_fields = "*"
+    orm_select
+}
+
+# ============================================================
+# orm_last_id - Get the last inserted row ID for a table
+# ============================================================
+# Input:  $_arg_table
+# Output: $_ret_value (int), $_ret_ok (1/0)
+# Note:   Uses MAX(rowid) since each shell() is a separate sqlite3 process
+#         and last_insert_rowid() resets per connection.
+func orm_last_id {
+    $_ret_ok = 0
+    $_orm_err = ""
+    $_arg_sql = "SELECT MAX(rowid) FROM " + $_arg_table + ";"
+    db_query_one
+    if ($_ret_ok == 1) {
+        $_ret_value = number($_ret_row)
+    }
+    else {
+        $_ret_value = 0
+        $_orm_err = $_db_err
+    }
+}

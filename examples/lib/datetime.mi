@@ -1,0 +1,151 @@
+# The Minilux Programming Language Standard Library
+# Title: Date/Time Library
+# Version: 0.1.0
+# Author: OscarEEspinozaB <https://github.com/OscarEEspinozaB/>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+#
+# Usage:
+#   include "lib/datetime.mi"
+#
+# All functions follow the $_arg_* / $_ret_* convention.
+# Requires GNU date (Linux). Not compatible with BSD/macOS date.
+
+# --- Global state ---
+$_dt_err = ""
+$_dt_format = "%Y-%m-%d %H:%M:%S"
+
+# ============================================================
+# dt_now - Get current date/time using $_dt_format
+# ============================================================
+# Output: $_ret_value (formatted date string)
+func dt_now {
+    $_dt_err = ""
+    $_ret_value = shell("date '+" + $_dt_format + "'")
+}
+
+# ============================================================
+# dt_timestamp - Get current Unix epoch timestamp
+# ============================================================
+# Output: $_ret_value (epoch seconds as int)
+func dt_timestamp {
+    $_dt_err = ""
+    $__dt_ts = shell("date +%s")
+    $_ret_value = number($__dt_ts)
+}
+
+# ============================================================
+# dt_format - Format a date string with a custom format
+# ============================================================
+# Input:  $_arg_date (parseable date string), $_arg_format (strftime format)
+# Output: $_ret_value (formatted date string)
+func dt_format {
+    $_dt_err = ""
+    $_ret_value = shell("date -d '" + $_arg_date + "' '+" + $_arg_format + "' 2>/dev/null")
+    if ($_ret_value == "") {
+        $_dt_err = "Failed to format date: " + $_arg_date
+    }
+}
+
+# ============================================================
+# dt_year - Extract year from a date string
+# ============================================================
+# Input:  $_arg_date
+# Output: $_ret_value (year as int)
+func dt_year {
+    $_dt_err = ""
+    $__dt_y = shell("date -d '" + $_arg_date + "' '+%Y' 2>/dev/null")
+    if ($__dt_y == "") {
+        $_dt_err = "Failed to parse date: " + $_arg_date
+        $_ret_value = 0
+    }
+    else {
+        $_ret_value = number($__dt_y)
+    }
+}
+
+# ============================================================
+# dt_month - Extract month from a date string
+# ============================================================
+# Input:  $_arg_date
+# Output: $_ret_value (month as int, 01-12)
+func dt_month {
+    $_dt_err = ""
+    $__dt_m = shell("date -d '" + $_arg_date + "' '+%m' 2>/dev/null")
+    if ($__dt_m == "") {
+        $_dt_err = "Failed to parse date: " + $_arg_date
+        $_ret_value = 0
+    }
+    else {
+        $_ret_value = number($__dt_m)
+    }
+}
+
+# ============================================================
+# dt_day - Extract day from a date string
+# ============================================================
+# Input:  $_arg_date
+# Output: $_ret_value (day as int, 01-31)
+func dt_day {
+    $_dt_err = ""
+    $__dt_d = shell("date -d '" + $_arg_date + "' '+%d' 2>/dev/null")
+    if ($__dt_d == "") {
+        $_dt_err = "Failed to parse date: " + $_arg_date
+        $_ret_value = 0
+    }
+    else {
+        $_ret_value = number($__dt_d)
+    }
+}
+
+# ============================================================
+# dt_day_of_week - Get abbreviated weekday name
+# ============================================================
+# Input:  $_arg_date
+# Output: $_ret_value (e.g. "Mon", "Tue", ...)
+func dt_day_of_week {
+    $_dt_err = ""
+    $_ret_value = shell("date -d '" + $_arg_date + "' '+%a' 2>/dev/null")
+    if ($_ret_value == "") {
+        $_dt_err = "Failed to parse date: " + $_arg_date
+    }
+}
+
+# ============================================================
+# dt_add - Add an offset to a date
+# ============================================================
+# Input:  $_arg_date, $_arg_offset (e.g. "3 days", "1 month", "2 hours")
+# Output: $_ret_value (formatted date string using $_dt_format)
+func dt_add {
+    $_dt_err = ""
+    $_ret_value = shell("date -d '" + $_arg_date + " + " + $_arg_offset + "' '+" + $_dt_format + "' 2>/dev/null")
+    if ($_ret_value == "") {
+        $_dt_err = "Failed to add offset to date: " + $_arg_date
+    }
+}
+
+# ============================================================
+# dt_diff - Difference between two dates in seconds
+# ============================================================
+# Input:  $_arg_date1, $_arg_date2
+# Output: $_ret_value (seconds, date2 - date1, can be negative)
+func dt_diff {
+    $_dt_err = ""
+    $__dt_e1 = shell("date -d '" + $_arg_date1 + "' '+%s' 2>/dev/null")
+    $__dt_e2 = shell("date -d '" + $_arg_date2 + "' '+%s' 2>/dev/null")
+    if (($__dt_e1 == "") OR ($__dt_e2 == "")) {
+        $_dt_err = "Failed to parse dates for diff"
+        $_ret_value = 0
+    }
+    else {
+        $_ret_value = number($__dt_e2) - number($__dt_e1)
+    }
+}
+
+# ============================================================
+# dt_set_format - Set the default date format
+# ============================================================
+# Input:  $_arg_format (strftime format string)
+func dt_set_format {
+    $_dt_format = $_arg_format
+}

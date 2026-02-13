@@ -1,0 +1,458 @@
+#!/usr/bin/env minilux
+
+# The Minilux Programming Language Example
+# Title: API Data Pipeline Demo (http + json + string + datetime + orm + fileio)
+# Version: 0.2.0
+# Author: OscarEEspinozaB <https://github.com/OscarEEspinozaB/>
+# License: MPL 2.0
+# SPDX-License-Identifier: MPL-2.0
+#
+# Demonstrates integration of all 7 stdlib modules in a real-world
+# data pipeline: fetch from public APIs, parse JSON, process strings,
+# timestamp with datetime, store in SQLite, query back, export report.
+#
+# Requires: curl, sqlite3, internet connection
+# Public API: https://jsonplaceholder.typicode.com (no auth needed)
+
+include "lib/http.mi"
+include "lib/string.mi"
+include "lib/datetime.mi"
+include "lib/orm.mi"
+include "lib/fileio.mi"
+
+$__demo_db = "/tmp/minilux_pipeline.db"
+$__demo_report = "/tmp/minilux_report.txt"
+$__demo_api = "https://jsonplaceholder.typicode.com"
+
+printf("=== Minilux API Data Pipeline Demo ===")
+printf("Libraries: http + json + string + datetime + orm + fileio")
+
+# ==============================================================
+# Part 1: Setup — connectivity check + SQLite database
+# ==============================================================
+printf("")
+printf("--- Part 1: Setup ---")
+
+# Check connectivity to JSONPlaceholder
+$_arg_url = $__demo_api + "/users/1"
+http_status
+if ($_ret_value != 200) {
+    printf("[SKIP] No internet connection (status: ", $_ret_value, ")")
+    printf("       This demo requires network access to jsonplaceholder.typicode.com")
+    printf("=== Demo aborted ===")
+}
+else {
+    printf("[OK] JSONPlaceholder API reachable (HTTP 200)")
+
+    # Open SQLite database
+    $_arg_path = $__demo_db
+    db_open
+    if ($_ret_ok == 1) {
+        printf("[OK] Database opened: ", $__demo_db)
+    }
+    else {
+        printf("[FAIL] db_open: ", $_db_err)
+    }
+
+    # Create tables
+    # Note: json.mi's greedy matching picks up nested "name" (company.name)
+    # so we use unique top-level fields: username, email, website
+    $_arg_sql = "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT, email TEXT, website TEXT, fetched_at TEXT);"
+    db_exec
+    if ($_ret_ok == 1) {
+        printf("[OK] Created table: users")
+    }
+    else {
+        printf("[FAIL] CREATE users: ", $_db_err)
+    }
+
+    $_arg_sql = "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY, user_id INTEGER, title TEXT, title_len INTEGER, fetched_at TEXT);"
+    db_exec
+    if ($_ret_ok == 1) {
+        printf("[OK] Created table: posts")
+    }
+    else {
+        printf("[FAIL] CREATE posts: ", $_db_err)
+    }
+
+    # Init HTTP client with base URL
+    $_arg_url = $__demo_api
+    http_init
+    printf("[OK] HTTP client initialized: ", $__demo_api)
+
+    # Init file library for report
+    $_arg_path = "/tmp"
+    file_init
+    printf("[OK] File library initialized: /tmp")
+
+    # ==============================================================
+    # Part 2: Fetch users from API → parse JSON → store in SQLite
+    # ==============================================================
+    printf("")
+    printf("--- Part 2: Fetch users (API -> JSON -> SQLite) ---")
+
+    $__demo_uid = 1
+    while ($__demo_uid <= 3) {
+        # Fetch user from API
+        $_arg_url = "/users/" + $__demo_uid
+        http_get
+        if ($_ret_ok == 1) {
+            # Parse JSON fields (only unique top-level fields)
+            $__demo_json_resp = $_ret_content
+
+            $_arg_json = $__demo_json_resp
+            $_arg_field = "username"
+            json_get_string
+            $__demo_uname = $_ret_value
+
+            $_arg_json = $__demo_json_resp
+            $_arg_field = "email"
+            json_get_string
+            $__demo_email = $_ret_value
+
+            $_arg_json = $__demo_json_resp
+            $_arg_field = "website"
+            json_get_string
+            $__demo_website = $_ret_value
+
+            # Timestamp with datetime
+            dt_now
+            $__demo_ts = $_ret_value
+
+            # Store in SQLite via ORM
+            $_arg_table = "users"
+            $_arg_columns = ["id", "username", "email", "website", "fetched_at"]
+            $_arg_values = [$__demo_uid, $__demo_uname, $__demo_email, $__demo_website, $__demo_ts]
+            orm_insert
+            if ($_ret_ok == 1) {
+                printf("[OK] User ", $__demo_uid, ": ", $__demo_uname, " <", $__demo_email, "> -> SQLite")
+            }
+            else {
+                printf("[FAIL] orm_insert user ", $__demo_uid, ": ", $_orm_err)
+            }
+        }
+        else {
+            printf("[FAIL] http_get /users/", $__demo_uid, ": ", $_http_err)
+        }
+        inc $__demo_uid + 1
+    }
+
+    # ==============================================================
+    # Part 3: Fetch posts → string processing → store in SQLite
+    # ==============================================================
+    printf("")
+    printf("--- Part 3: Fetch posts (API -> JSON -> String -> SQLite) ---")
+
+    $__demo_pid = 1
+    while ($__demo_pid <= 3) {
+        $_arg_url = "/posts/" + $__demo_pid
+        http_get
+        if ($_ret_ok == 1) {
+            $__demo_json_resp = $_ret_content
+
+            # Parse JSON fields
+            $_arg_json = $__demo_json_resp
+            $_arg_field = "userId"
+            json_get_number
+            $__demo_post_uid = $_ret_value
+
+            $_arg_json = $__demo_json_resp
+            $_arg_field = "title"
+            json_get_string
+            $__demo_title = $_ret_value
+
+            # String processing: get title length
+            $_arg_str = $__demo_title
+            str_length
+            $__demo_tlen = $_ret_value
+
+            # String processing: truncate long titles for display
+            if ($__demo_tlen > 40) {
+                $_arg_str = $__demo_title
+                $_arg_start = 0
+                $_arg_length = 37
+                str_substring
+                $__demo_title_short = $_ret_str + "..."
+            }
+            else {
+                $__demo_title_short = $__demo_title
+            }
+
+            # Timestamp
+            dt_now
+            $__demo_ts = $_ret_value
+
+            # Store in SQLite
+            $_arg_table = "posts"
+            $_arg_columns = ["id", "user_id", "title", "title_len", "fetched_at"]
+            $_arg_values = [$__demo_pid, $__demo_post_uid, $__demo_title, $__demo_tlen, $__demo_ts]
+            orm_insert
+            if ($_ret_ok == 1) {
+                printf("[OK] Post ", $__demo_pid, ': "', $__demo_title_short, '" (', $__demo_tlen, " chars) -> SQLite")
+            }
+            else {
+                printf("[FAIL] orm_insert post ", $__demo_pid, ": ", $_orm_err)
+            }
+        }
+        else {
+            printf("[FAIL] http_get /posts/", $__demo_pid, ": ", $_http_err)
+        }
+        inc $__demo_pid + 1
+    }
+
+    # ==============================================================
+    # Part 4: Query and analyze stored data
+    # ==============================================================
+    printf("")
+    printf("--- Part 4: Query stored data (SQLite -> analysis) ---")
+
+    # Count records
+    $_arg_table = "users"
+    $_arg_where = ""
+    orm_count
+    printf("[OK] Total users in DB: ", $_ret_value)
+
+    $_arg_table = "posts"
+    $_arg_where = ""
+    orm_count
+    printf("[OK] Total posts in DB: ", $_ret_value)
+
+    # Find posts by user 1
+    $_arg_table = "posts"
+    $_arg_field = "user_id"
+    $_arg_value = 1
+    orm_find_by
+    if ($_ret_ok == 1) {
+        printf("[OK] Posts by user 1: ", $_ret_count, " found")
+    }
+    else {
+        printf("[FAIL] orm_find_by: ", $_orm_err)
+    }
+
+    # Select all users and display with db_col
+    # Columns: 1=id, 2=username, 3=email, 4=website, 5=fetched_at
+    $_arg_table = "users"
+    $_arg_where = ""
+    $_arg_fields = ""
+    orm_select
+    if ($_ret_ok == 1) {
+        printf("[OK] All users:")
+        $__demo_i = 0
+        while ($__demo_i < $_ret_count) {
+            $_arg_row = $_ret_rows[$__demo_i]
+            $_arg_index = 2
+            db_col
+            $__demo_uname = $_ret_value
+            $_arg_index = 3
+            db_col
+            $__demo_email = $_ret_value
+            $_arg_index = 4
+            db_col
+            $__demo_website = $_ret_value
+            printf("     - ", $__demo_uname, " <", $__demo_email, "> (", $__demo_website, ")")
+            inc $__demo_i + 1
+        }
+    }
+
+    # String search: find users whose email contains ".biz"
+    printf("[OK] Email search (str_contains '.biz'):")
+    $_arg_table = "users"
+    $_arg_where = ""
+    $_arg_fields = ""
+    orm_select
+    $__demo_saved_rows = $_ret_rows
+    $__demo_saved_count = $_ret_count
+    $__demo_i = 0
+    while ($__demo_i < $__demo_saved_count) {
+        $_arg_row = $__demo_saved_rows[$__demo_i]
+        $_arg_index = 3
+        db_col
+        $__demo_email = $_ret_value
+        $_arg_index = 2
+        db_col
+        $__demo_uname = $_ret_value
+        $_arg_str = $__demo_email
+        $_arg_search = ".biz"
+        str_contains
+        if ($_ret_found == 1) {
+            printf("     - MATCH: ", $__demo_uname, " (", $__demo_email, ")")
+        }
+        inc $__demo_i + 1
+    }
+
+    # ==============================================================
+    # Part 5: SQLite -> JSON round-trip
+    # ==============================================================
+    printf("")
+    printf("--- Part 5: SQLite -> JSON (cross-lib round-trip) ---")
+
+    $_arg_table = "users"
+    $_arg_where = ""
+    $_arg_fields = ""
+    orm_select
+    $__demo_saved_rows = $_ret_rows
+    $__demo_saved_count = $_ret_count
+    $__demo_i = 0
+    while ($__demo_i < $__demo_saved_count) {
+        $_arg_row = $__demo_saved_rows[$__demo_i]
+        $_arg_index = 1
+        db_col
+        $__demo_id = $_ret_value
+        $_arg_index = 2
+        db_col
+        $__demo_uname = $_ret_value
+        $_arg_index = 3
+        db_col
+        $__demo_email = $_ret_value
+        $_arg_index = 4
+        db_col
+        $__demo_website = $_ret_value
+
+        # Build JSON from SQLite row
+        $_arg_keys = ["id", "username", "email", "website"]
+        $_arg_vals = [number($__demo_id), $__demo_uname, $__demo_email, $__demo_website]
+        json_build
+        printf("     ", $_ret_value)
+        inc $__demo_i + 1
+    }
+    printf("[OK] Converted ", $__demo_saved_count, " SQLite rows to JSON")
+
+    # ==============================================================
+    # Part 6: Export report to file (fileio)
+    # ==============================================================
+    printf("")
+    printf("--- Part 6: Export report (fileio) ---")
+
+    # Build report content
+    dt_now
+    $__demo_report_text = "Minilux Data Pipeline Report\n"
+    $__demo_report_text = $__demo_report_text + "Generated: " + $_ret_value + "\n"
+    $__demo_report_text = $__demo_report_text + "Source: " + $__demo_api + "\n"
+    $__demo_report_text = $__demo_report_text + "---\n"
+
+    # Add user summary
+    $_arg_table = "users"
+    $_arg_where = ""
+    orm_count
+    $__demo_report_text = $__demo_report_text + "Users fetched: " + $_ret_value + "\n"
+
+    $_arg_table = "posts"
+    $_arg_where = ""
+    orm_count
+    $__demo_report_text = $__demo_report_text + "Posts fetched: " + $_ret_value + "\n"
+
+    # Add table listing from SQLite
+    db_tables
+    $__demo_report_text = $__demo_report_text + "Tables: " + $_ret_count + "\n"
+
+    # Write report file
+    $_arg_path = "minilux_report.txt"
+    $_arg_data = $__demo_report_text
+    file_write
+    if ($_ret_ok == 1) {
+        printf("[OK] Report written to ", $__demo_report)
+    }
+    else {
+        printf("[FAIL] file_write: ", $_file_err)
+    }
+
+    # Read it back to verify
+    $_arg_path = "minilux_report.txt"
+    file_read
+    if ($_ret_ok == 1) {
+        printf("[OK] Report content:")
+        printf($__demo_report_text)
+    }
+    else {
+        printf("[FAIL] file_read: ", $_file_err)
+    }
+
+    # ==============================================================
+    # Part 7: DateTime analysis
+    # ==============================================================
+    printf("--- Part 7: DateTime analysis ---")
+
+    # Show when first and last records were fetched
+    $_arg_table = "users"
+    $_arg_where = "id = 1"
+    orm_select_one
+    if ($_ret_ok == 1) {
+        $_arg_row = $_ret_row
+        $_arg_index = 5
+        db_col
+        $__demo_first_ts = $_ret_value
+        printf("[OK] First fetch timestamp: ", $__demo_first_ts)
+
+        # Parse the year from the fetch timestamp
+        $_arg_date = $__demo_first_ts
+        dt_year
+        printf("[OK] Fetch year: ", $_ret_value)
+
+        $_arg_date = $__demo_first_ts
+        dt_day_of_week
+        printf("[OK] Fetch day: ", $_ret_value)
+    }
+
+    # Current time vs fetch time
+    dt_now
+    $__demo_now = $_ret_value
+    printf("[OK] Current time: ", $__demo_now)
+
+    # ==============================================================
+    # Part 8: Schema introspection
+    # ==============================================================
+    printf("")
+    printf("--- Part 8: Schema introspection ---")
+
+    db_tables
+    if ($_ret_ok == 1) {
+        printf("[OK] Tables in database:")
+        $__demo_i = 0
+        while ($__demo_i < $_ret_count) {
+            printf("     - ", $_ret_rows[$__demo_i])
+            inc $__demo_i + 1
+        }
+    }
+
+    $_arg_table = "users"
+    db_columns
+    if ($_ret_ok == 1) {
+        printf("[OK] Columns in 'users': ", $_ret_count)
+        $__demo_i = 0
+        while ($__demo_i < $_ret_count) {
+            printf("     - ", $_ret_rows[$__demo_i])
+            inc $__demo_i + 1
+        }
+    }
+
+    $_arg_table = "posts"
+    db_columns
+    if ($_ret_ok == 1) {
+        printf("[OK] Columns in 'posts': ", $_ret_count)
+        $__demo_i = 0
+        while ($__demo_i < $_ret_count) {
+            printf("     - ", $_ret_rows[$__demo_i])
+            inc $__demo_i + 1
+        }
+    }
+
+    # ==============================================================
+    # Part 9: Cleanup
+    # ==============================================================
+    printf("")
+    printf("--- Part 9: Cleanup ---")
+    http_reset
+    printf("[OK] HTTP client reset")
+    db_close
+    printf("[OK] Database closed")
+    $__demo_discard = shell("rm -f " + $__demo_db)
+    printf("[OK] Removed database: ", $__demo_db)
+    $__demo_discard = shell("rm -f " + $__demo_report)
+    printf("[OK] Removed report: ", $__demo_report)
+    file_reset
+    printf("[OK] File library reset")
+
+    printf("")
+    printf("=== Pipeline complete ===")
+    printf("Libraries used: http, json, string, datetime, orm, sqlite, fileio")
+}
