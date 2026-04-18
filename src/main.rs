@@ -72,6 +72,8 @@ fn run_repl() {
     println!("Type \"exit\" to quit");
     println!();
 
+    let mut interpreter = Interpreter::new();
+
     loop {
         input.clear();
         print!("> ");
@@ -93,7 +95,6 @@ fn run_repl() {
         let mut parser = Parser::new(trimmed);
         let statements = parser.parse();
 
-        let mut interpreter = Interpreter::new();
         if let Err(e) = interpreter.execute(statements) {
             eprintln!("Error: {}", e);
         }
